@@ -10,6 +10,7 @@ import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFactory;
 import org.jboss.netty.channel.ChannelFuture;
+import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
@@ -39,6 +40,7 @@ public class BufferClient {
 	NioClientSocketChannelFactory factory;
 	ChannelPipelineFactory channelPipeline;
 	Configuration conf ;
+
 	public BufferClient(Configuration conf, final ClientServerCallback callback) {
 		this.conf = conf;
 		factory = new NioClientSocketChannelFactory(
@@ -69,13 +71,51 @@ public class BufferClient {
 	}
 
 	/**
+	 * Asynchronously connect to the specified server and add a listener for connection attempt and channel identification message.
+	 * If the channel attempt or identification notification fails it closes the channel. 
+	 * @param Remote Server SocketAddress
+	 * @return channel
+	 */
+	public Channel connectServerToServerAsync(InetSocketAddress remoteSocketAddress){
+
+		ChannelFuture connectionChannelFuture = bootstrap.connect(remoteSocketAddress);
+		Channel channel = connectionChannelFuture.getChannel();
+
+		//listener for connection and notification message
+		connectionChannelFuture.addListener(new ChannelFutureListener() {
+			@Override
+			public void operationComplete(ChannelFuture future) throws Exception {
+				// TODO Auto-generated method stub
+				if(future.isSuccess()){
+					ChannelFuture msgFuture =future.getChannel().write(LogEntry.newBuilder()
+							.setMessageType(Type.CONNECTION_BUFFER_SERVER)
+							.setClientSocketAddress(conf.getBufferServerSocketAddress().toString())
+							.build());
+					msgFuture.addListener(new ChannelFutureListener() {
+						@Override
+						public void operationComplete(ChannelFuture future) throws Exception {
+							// TODO Auto-generated method stub
+							if(!future.isSuccess())
+								future.getChannel().close();
+						}
+					});
+				}
+				else
+					future.getChannel().close();
+			}
+		});
+
+		return channel;
+	}
+
+	/**
 	 * Starts a connection to a remote server and returns the correspondent channel.
-	 * If the connection attempts fails it returns null. 
+	 * If the connection attempts fails it returns null.
 	 * @param remoteSocketAddress
 	 * @return
 	 */
 	public Channel connectServerToServer(InetSocketAddress remoteSocketAddress){
-		
+
 		ChannelFuture channelFuture = bootstrap.connect(remoteSocketAddress);
 		Channel channel = channelFuture.getChannel();
 		if(!channelFuture.awaitUninterruptibly().isSuccess()){
@@ -88,47 +128,86 @@ public class BufferClient {
 					.build());
 			if(!msgSentFuture.awaitUninterruptibly().isSuccess())
 				return null;
-			}
-			return channel;
+		}
+		return channel;
 	}
 
+	/**
+	 * Asynchronously connect to the specified server and add a listener for connection attempt and channel identification message.
+	 * If the channel attempt or identification notification fails it closes the channel. 
+	 * @param Remote Server SocketAddress
+	 * @return channel
+	 */
 	public Channel connectServerToClient(InetSocketAddress remoteSocketAddress){
-		
-		ChannelFuture channelFuture = bootstrap.connect(remoteSocketAddress);
-		Channel channel = channelFuture.getChannel();
-/*		if(!channelFuture.awaitUninterruptibly().isSuccess()){
-			channelFuture.getCause().printStackTrace();
-			return null;}
-		else {
-			ChannelFuture msgSentFuture = channel.write(LogEntry.newBuilder()
-					.setMessageType(Type.CONNECTION_TAIL_TO_DB_CLIENT)
-					.setClientSocketAddress(conf.getBufferServerSocketAddress().toString())
-					.build());
-			if(!msgSentFuture.awaitUninterruptibly().isSuccess())
-				return null;
+
+		ChannelFuture connectionChannelFuture = bootstrap.connect(remoteSocketAddress);
+		Channel channel = connectionChannelFuture.getChannel();
+
+		//listener for connection and notification message
+		connectionChannelFuture.addListener(new ChannelFutureListener() {
+			@Override
+			public void operationComplete(ChannelFuture future) throws Exception {
+				// TODO Auto-generated method stub
+				if(future.isSuccess()){
+					ChannelFuture msgFuture =future.getChannel().write(LogEntry.newBuilder()
+							.setMessageType(Type.CONNECTION_TAIL_TO_DB_CLIENT)
+							.setClientSocketAddress(conf.getBufferServerSocketAddress().toString())
+							.build());
+					msgFuture.addListener(new ChannelFutureListener() {
+						@Override
+						public void operationComplete(ChannelFuture future) throws Exception {
+							// TODO Auto-generated method stub
+							if(!future.isSuccess())
+								future.getChannel().close();
+						}
+					});
+				}
+				else
+					future.getChannel().close();
 			}
-*/			return channel;
+		});
+
+		return channel;
 	}
-	
+
+	/**
+	 * Asynchronously connect to the specified server and add a listener for connection attempt and channel identification message.
+	 * If the channel attempt or identification notification fails it closes the channel. 
+	 * @param Remote Server SocketAddress
+	 * @return channel
+	 */
 	public Channel connectClientToServer(InetSocketAddress remoteSocketAddress){
 		System.out.println("\nCLIENT coneccting to " + remoteSocketAddress + "....\n");
-		ChannelFuture channelFuture = bootstrap.connect(remoteSocketAddress);
-		Channel channel = channelFuture.getChannel();
-		if(!channelFuture.awaitUninterruptibly().isSuccess()){
-			channelFuture.getCause().printStackTrace();
-			return null;}
-		else {
-			ChannelFuture msgSentFuture = channel.write(LogEntry.newBuilder()
-					.setMessageType(Type.CONNECTION_DB_CLIENT)
-					.setEntryId(LogEntry.Identifier.newBuilder().setClientId(conf.getDbClientId()))
-					.setClientSocketAddress(conf.getBufferServerSocketAddress().toString())
-					.build());
-			if(!msgSentFuture.awaitUninterruptibly().isSuccess())
-				return null;
+		ChannelFuture connectionChannelFuture = bootstrap.connect(remoteSocketAddress);
+		Channel channel = connectionChannelFuture.getChannel();
+
+		//listener for connection and notification message
+		connectionChannelFuture.addListener(new ChannelFutureListener() {
+			@Override
+			public void operationComplete(ChannelFuture future) throws Exception {
+				// TODO Auto-generated method stub
+				if(future.isSuccess()){
+					ChannelFuture msgFuture =future.getChannel().write(LogEntry.newBuilder()
+							.setMessageType(Type.CONNECTION_DB_CLIENT)
+							.setEntryId(LogEntry.Identifier.newBuilder().setClientId(conf.getDbClientId()))
+							.setClientSocketAddress(conf.getBufferServerSocketAddress().toString())
+							.build());
+					msgFuture.addListener(new ChannelFutureListener() {
+						@Override
+						public void operationComplete(ChannelFuture future) throws Exception {
+							// TODO Auto-generated method stub
+							if(!future.isSuccess())
+								future.getChannel().close();
+						}
+					});
+				}
+				else
+					future.getChannel().close();
 			}
-			return channel;
+		});
+		return channel;
 	}
-	
+
 	public void stop(){
 		if(factory!=null)
 			factory.releaseExternalResources();

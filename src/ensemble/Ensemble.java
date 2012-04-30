@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
+import org.jboss.netty.channel.ChannelFutureListener;
 
 import client.Log.LogEntry;
 import client.Log.LogEntry.Identifier;
@@ -85,19 +86,23 @@ public class Ensemble {
 		return buffer;
 	}
 
-	public boolean addHeadDBClient(String clientId, String clientSocketAddress, Channel channel){
+	public boolean addHeadDBClient(String clientId, String clientSocketAddress, Channel channel) throws Exception{
 		LogEntry tailNotify = LogEntry.newBuilder()
 				.setMessageType(Type.TAIL_NOTIFICATION)
 				.setEntryId(Identifier.newBuilder().setClientId(clientId))
 				.setClientSocketAddress(clientSocketAddress)
 				.build();
-		ChannelFuture future = predecessorChannel.write(tailNotify);
-	//	if(future.isSuccess()){
-			headDbClients.put(clientId, channel);
-			return true;
+		ChannelFuture future;
+		if(predecessorChannel.isOpen())
+			future = predecessorChannel.write(tailNotify);
+		else
+			throw new Exception("Predecessor channel is Closed!" + predecessorChannel);
+		//	if(future.isSuccess()){
+		headDbClients.put(clientId, channel);
+		return true;
 		//}
-	//	else
-	//		return false;
+		//	else
+		//		return false;
 	}
 	public void removeHeadDbClient(String clientId){
 		headDbClients.remove(clientId);
@@ -115,26 +120,49 @@ public class Ensemble {
 			ch.close();
 	}
 
-	public void entryPersisted(Identifier id){
-		buffer.remove(id);
-		if(!headDbClients.containsKey(id.getClientId()))
-			predecessorChannel.write(LogEntry.newBuilder().setEntryId(id).build());
-		//add listener later
+	public void entryPersisted(final LogEntry entry) throws Exception{
+		buffer.remove(entry.getEntryId());
+		ChannelFuture channelFuture = null;
+		if(!headDbClients.containsKey(entry.getEntryId().getClientId()))
+			if(predecessorChannel.isOpen())
+				channelFuture = predecessorChannel.write(entry);
+			else
+				throw new Exception("Predecessor channel is Closed!" +  predecessorChannel);
+
+		if(channelFuture!=null)
+			channelFuture.addListener(new ChannelFutureListener() {
+				@Override
+				public void operationComplete(ChannelFuture future) throws Exception {
+					// TODO Auto-generated method stub
+					if(!future.isSuccess())
+						throw new Exception("Persisted Message failed to deliver." +  future.getCause());
+				}
+			});
 	}
 
-	public boolean addToBuffer(LogEntry entry){
+	public boolean addToBuffer(final LogEntry entry) throws Exception{
 		Channel channel = tailDbClients.get(entry.getEntryId().getClientId());
 		ChannelFuture future;
-		if(channel!=null){//I am the tail ack to client cause its replicated in all machines
+		if(channel==null)
+			channel = successorChannel;
+		
+		if(channel==null || !channel.isOpen())
+			throw new Exception("Attempt to send data while channel is not open or its null. Chenl: " + channel );
+		else
 			future = channel.write(ackMessage(entry.getEntryId()));
-		}else
-			future = successorChannel.write(entry);
-		//add listener instead later
-		//		if(future.isSuccess()){
-		//			buffer.add(entry);
-		//			return true;}
-		//		else
-		return false;
+
+		future.addListener(new ChannelFutureListener() {
+			@Override
+			public void operationComplete(ChannelFuture future) throws Exception {
+				// TODO Auto-generated method stub
+				if(!future.isSuccess())
+					throw new Exception("Failed to send entry to destination(Ack t client or the log to next buffer server)." + future.getCause());
+				else
+					System.out.println("Msg Buffered and delivered" +  entry.getEntryId());
+			}
+		});
+		buffer.add(entry);
+		return true;
 	}
 
 	LogEntry ackMessage(Identifier id){

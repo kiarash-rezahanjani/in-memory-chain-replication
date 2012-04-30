@@ -7,6 +7,7 @@ public interface CircularBuffer {
 
 	public void add(Object object);
 	public void add(LogEntry entry);
-	public Object get();
+	public Object nextToRead();
+	public LogEntry nextToPersist();
 	public void remove(Identifier id);
 }

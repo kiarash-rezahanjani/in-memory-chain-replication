@@ -60,12 +60,12 @@ public class ChainManager implements ClientServerCallback{
 			LogEntry msg = (LogEntry) e.getMessage();
 			if(msg.hasMessageType()){//check if this is a channel identification message
 				//replace with a switch
-				if(msg.getMessageType()==Type.ACK){
+				if(msg.getMessageType()==Type.ACK){//should n not happen here
 					System.out.println("Client Rec Ack: " + msg.getEntryId() + " " + conf.getBufferServerSocketAddress());
 				}
 
 				if(msg.getMessageType()==Type.ENTRY_PERSISTED){
-					ensemble.entryPersisted(msg.getEntryId());
+					ensemble.entryPersisted(msg);
 					System.out.println("Server Rec Persisted: " + msg.getEntryId() + "Server: " + conf.getBufferServerSocketAddress());
 				}else
 					if(unknownChannels.size()>0 && msg.getMessageType()==Type.CONNECTION_BUFFER_SERVER){

@@ -87,6 +87,7 @@ public class DBClient implements Runnable{
 		stop = true;
 	}
 
+	
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
@@ -104,16 +105,17 @@ public class DBClient implements Runnable{
 						.setOperation("Opt.add(pfffff)").build();
 				
 				ChannelFuture f = channel.write(entry);
-				if(f.awaitUninterruptibly().isSuccess())
-					;
-				else
-					;
+
 				try {
-					Thread.sleep(500);
+					Thread.sleep(10);
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
+				if(f.awaitUninterruptibly().isSuccess())
+					;
+				else
+					;
 			}
 		//}
 	
