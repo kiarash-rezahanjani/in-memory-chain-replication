@@ -34,13 +34,13 @@ public class NaiveCircularBuffer implements CircularBuffer{
 	Queue<Integer> persistIndexQueue = new LinkedList<Integer>();
 	public List<String> persistClient = new ArrayList<String>();//should be synchronized
 	private BitSet bufferElementStat; //jus to check: each bit at position x indicates whether the element at this position is persisted
-	private Semaphore addSem ;
-	private Semaphore removeSem ;
+//	private Semaphore addSem ;
+//	private Semaphore removeSem ;
 	
 	public NaiveCircularBuffer(int capacity) {
 		this.capacity = capacity;
-		addSem = new Semaphore(capacity);
-		removeSem = new Semaphore(capacity);
+//		addSem = new Semaphore(capacity);
+//		removeSem = new Semaphore(capacity);
 		bufferElementStat = new BitSet(this.capacity);
 		buffer = new LogEntry[capacity];
 		 readPosition = 0;
@@ -61,14 +61,14 @@ public class NaiveCircularBuffer implements CircularBuffer{
 				e.printStackTrace();
 			}
 		}
-	*/	
+		
 		try {
 			addSem.acquire();
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+*/		
 		String clientId = entry.getEntryId().getClientId();
 		Long msgId = Long.valueOf(entry.getEntryId().getMessageId());
 		Integer position = Integer.valueOf(writePosition);

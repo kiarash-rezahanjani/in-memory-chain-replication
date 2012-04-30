@@ -2,35 +2,24 @@ package persistence;
 
 import client.Log.LogEntry;
 import client.Log.LogEntry.Identifier;
+import client.Log.LogEntry.Type;
 import ensemble.CircularBuffer;
+import ensemble.Ensemble;
 
 public class DummyPersister extends AbstractPersister{
 
-	public DummyPersister(CircularBuffer buffer) {
-		super(buffer);
+	public DummyPersister(Ensemble ensemble) {
+		super(ensemble);
 		// TODO Auto-generated constructor stub
 	}
 
 	@Override
-	public Identifier persist(LogEntry entry) {
+	public LogEntry persist(LogEntry entry) {
 		// TODO Auto-generated method stub
-		return entry.getEntryId();
+		return getPersistedMessage(entry);
 	}
 	
-	@Override
-	public void run() {
-		// TODO Auto-generated method stub
-		while(true){
-			try {
-				
-				LogEntry entry = buffer.nextToPersist();
-				Thread.sleep(1);//persist
-				buffer.remove(entry.getEntryId());
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
-	}
+
+
 
 }
