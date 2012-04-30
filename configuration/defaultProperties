@@ -1,0 +1,16 @@
+//Listening port for protocol server and buffer server.
+protocol_port = 3333
+buffer_server_port = 4444
+
+//buffer size for each ensemble
+ensemble_buffer_size = 100
+
+//zookeeper properties should only be placed in default properties file. 
+//The zkNameSpace is the parent nodes and the rest will be child nodes. Nodes should include slash at the beginning.
+zkConnectionString = localhost:2181
+zkSessionTimeOut = 3000
+zkNameSpace = /logservice
+zkServersRoot = /servers
+zkClientRoot = /clients
+zkEnsemblesRoot = /ensembles
+zkServersGlobalViewRoot = /serversglobalview

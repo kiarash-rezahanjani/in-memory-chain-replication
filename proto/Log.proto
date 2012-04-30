@@ -1,0 +1,31 @@
+package serialization;
+
+option java_package = "client";
+option java_outer_classname = "Log";
+
+message LogEntry
+{
+	optional Identifier entryId= 1;
+	optional string key = 2;
+	optional string operation = 3;
+	optional string clientSocketAddress = 4;
+	
+	optional Type messageType = 5;//for channel identification
+
+	message Identifier 
+	{
+		required string clientId = 1;
+		optional int64 messageId = 2;
+	}
+	
+	enum Type //for channel identification
+	{
+		CONNECTION_DB_CLIENT = 1;
+		CONNECTION_BUFFER_SERVER = 2;
+		ENTRY_PERSISTED = 3;
+		TAIL_NOTIFICATION = 4;
+		ACK = 5;
+		CONNECTION_TAIL_TO_DB_CLIENT = 6;
+	}
+	
+}

@@ -1,0 +1,5 @@
+protocol_port = 1212
+buffer_server_port = 1317
+
+//Db client
+DB_CLIENT_ID = 3
