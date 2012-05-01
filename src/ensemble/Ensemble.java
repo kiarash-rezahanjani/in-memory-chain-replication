@@ -8,6 +8,9 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 
+import persistence.AbstractPersister;
+import persistence.DummyPersister;
+
 import client.Log.LogEntry;
 import client.Log.LogEntry.Identifier;
 import client.Log.LogEntry.Type;
@@ -17,6 +20,18 @@ import utility.Configuration;
 public class Ensemble {
 	final CircularBuffer buffer;
 	List<InetSocketAddress> sortedChainSocketAddress;
+	Channel successorChannel;//to send logs
+	Channel predecessorChannel;//to send remove message
+	HashMap<String, Channel> headDbClients = new HashMap<String, Channel>();//receive logs <clientId, channel>
+	HashMap<String, Channel> tailDbClients = new HashMap<String, Channel>();//send ack
+	final Configuration conf;
+	
+	AbstractPersister persister;
+	BufferReader bufferReader;
+
+	public Configuration getConfiguration() {
+		return conf;
+	}
 	public Channel getSuccessorChannel() {
 		return successorChannel;
 	}
@@ -30,18 +45,19 @@ public class Ensemble {
 		return tailDbClients;
 	}
 
-	Channel successorChannel;//to send logs
-	Channel predecessorChannel;//to send remove message
-	HashMap<String, Channel> headDbClients = new HashMap<String, Channel>();//receive logs <clientId, channel>
-	HashMap<String, Channel> tailDbClients = new HashMap<String, Channel>();//send ack
-	Configuration conf;
-
 	public Ensemble(Configuration conf, List<InetSocketAddress> sortedChainSocketAddress) throws Exception{
 		this.conf=conf;
 		this.sortedChainSocketAddress = sortedChainSocketAddress;
 		if(sortedChainSocketAddress.size()<2)
 			throw new Exception("obj.chain Ensemble size < 2 ");
-		buffer = new NaiveCircularBuffer(conf.getEnsembleBufferSize());
+		buffer = new NaiveCircularBuffer(conf.getEnsembleBufferSize(),tailDbClients.keySet());
+		persister = new DummyPersister(this);
+		bufferReader = new BufferReader(this);
+		persister.start();
+		bufferReader.start();
+	
+		print("persister"+persister.getName());
+		print("reader"+bufferReader.getName());
 	}
 	public InetSocketAddress getSuccessorSocketAddress() throws Exception{
 		int index = getLocalAddressIndex();
@@ -70,14 +86,8 @@ public class Ensemble {
 			List<InetSocketAddress> sortedChainSocketAddress) {
 		this.sortedChainSocketAddress = sortedChainSocketAddress;
 	}
-	public Channel getSuccessor() {
-		return successorChannel;
-	}
 	public void setSuccessor(Channel successor) {
 		this.successorChannel = successor;
-	}
-	public Channel getPredecessor() {
-		return predecessorChannel;
 	}
 	public void setPredecessor(Channel predecessor) {
 		this.predecessorChannel = predecessor;
@@ -118,6 +128,8 @@ public class Ensemble {
 		predecessorChannel.close();
 		for(Channel ch : tailDbClients.values())
 			ch.close();
+		persister.stopRunning();
+		bufferReader.stopRunning();
 	}
 
 	public void entryPersisted(final LogEntry entry) throws Exception{
@@ -135,13 +147,13 @@ public class Ensemble {
 				public void operationComplete(ChannelFuture future) throws Exception {
 					// TODO Auto-generated method stub
 					if(!future.isSuccess())
-						throw new Exception("Persisted Message failed to deliver." +  future.getCause());
+						throw new Exception("Persisted Message failed to deliver." + Thread.currentThread() + " "+  future.getCause());
 				}
 			});
 	}
 
-	public boolean addToBuffer(final LogEntry entry) throws Exception{
-		Channel channel = tailDbClients.get(entry.getEntryId().getClientId());
+	public void addToBuffer(final LogEntry entry) throws Exception{
+/*		Channel channel = tailDbClients.get(entry.getEntryId().getClientId());
 		ChannelFuture future;
 		if(channel==null)
 			channel = successorChannel;
@@ -161,16 +173,14 @@ public class Ensemble {
 					System.out.println("Msg Buffered and delivered" +  entry.getEntryId());
 			}
 		});
-		buffer.add(entry);
-		return true;
-	}
+	*/	buffer.add(entry);
 
-	LogEntry ackMessage(Identifier id){
-		return LogEntry.newBuilder().setEntryId(id)
-				.setClientSocketAddress(conf.getBufferServerSocketAddress().toString())
-				.setMessageType(Type.ACK).build();
 	}
-
+	void print(String str){
+		//String meta = "\n[RP: "+readPosition + " WP: " + writePosition + " PS: " + 
+			//		persistIndexQueue.size() + " c/s: " + size.get() + "/"+ capacity + " \n"; 
+		System.out.println("ENSEMBLE "+ str );}
+	
 	public void removeClient(){
 
 	}

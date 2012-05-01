@@ -66,7 +66,7 @@ public class ChainManager implements ClientServerCallback{
 
 				if(msg.getMessageType()==Type.ENTRY_PERSISTED){
 					ensemble.entryPersisted(msg);
-					System.out.println("Server Rec Persisted: " + msg.getEntryId() + "Server: " + conf.getBufferServerSocketAddress());
+				//	System.out.println("Server Rec Persisted: " + msg.getEntryId() + "Server: " + conf.getBufferServerSocketAddress());
 				}else
 					if(unknownChannels.size()>0 && msg.getMessageType()==Type.CONNECTION_BUFFER_SERVER){
 						if(!unknownChannels.contains(e.getChannel()))
@@ -93,7 +93,7 @@ public class ChainManager implements ClientServerCallback{
 			}else
 			{
 				ensemble.addToBuffer(msg);
-				System.out.println("1Server added to buffer: " + msg.getEntryId() + "Server: " + conf.getBufferServerSocketAddress());
+				//System.out.println(conf.getBufferServerSocketAddress().getPort() + " buffered " + msg.getEntryId() );
 			}
 		}catch(Exception ex)
 		{ex.printStackTrace(); System.exit(-1);}
@@ -136,5 +136,5 @@ public class ChainManager implements ClientServerCallback{
 		server.stop();
 		client.stop();
 	}
-
+	
 }

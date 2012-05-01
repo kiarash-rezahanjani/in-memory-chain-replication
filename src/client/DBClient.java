@@ -1,9 +1,12 @@
 package client;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
+import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
@@ -23,6 +26,9 @@ public class DBClient implements Runnable{
 	BufferServer server;
 	BufferClient client;
 	InetSocketAddress serverSocketAddress;
+	List<Identifier> sentMessages = new ArrayList<Identifier>();
+	List<Identifier> receivedMessages = new ArrayList<Identifier>();
+	boolean running=true;
 	volatile boolean stop = false; 
 	ClientServerCallback callback = new ClientServerCallback() {
 
@@ -35,6 +41,7 @@ public class DBClient implements Runnable{
 				if(msg.getMessageType()==Type.ACK){
 					System.out.println("Client Rec Ack: " + msg.getEntryId() + " Cli: " + conf.getBufferServerSocketAddress() 
 							+ " From: " + msg.getClientSocketAddress());
+					receivedMessages.add(msg.getEntryId());
 					return;
 				}
 				if(msg.getMessageType()==Type.CONNECTION_TAIL_TO_DB_CLIENT){
@@ -49,7 +56,7 @@ public class DBClient implements Runnable{
 		@Override
 		public void serverAcceptedConnection(ChannelStateEvent e) {
 			// TODO Auto-generated method stub
-			
+
 		}
 
 		@Override
@@ -61,7 +68,7 @@ public class DBClient implements Runnable{
 		@Override
 		public void clientReceivedMessage(MessageEvent e) {
 			// TODO Auto-generated method stub
-			
+
 		}
 
 		@Override
@@ -82,45 +89,45 @@ public class DBClient implements Runnable{
 		this(conf);
 		this.serverSocketAddress = new InetSocketAddress(serverHost, serverPort);
 	}
-	
-	public void stop(){
-		stop = true;
+
+	public void stopRunning(){
+		running = false;
+		//	interrupt();
 	}
 
-	
+
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
 		Channel channel = client.connectClientToServer(serverSocketAddress);
-		//while(!stop){
-			for(int i = 0; i<20 ; i++){
-				Identifier id = Identifier.newBuilder()
-						.setClientId(conf.getDbClientId())
-						.setMessageId(IDGenerator.getNextId()).build();
-						
-				LogEntry entry = LogEntry.newBuilder()
-						.setEntryId(id)
-						.setKey("Key"+i)
-						.setClientSocketAddress(conf.getBufferServerSocketAddress().toString())
-						.setOperation("Opt.add(pfffff)").build();
-				
-				ChannelFuture f = channel.write(entry);
+		try {
+			Thread.sleep(100);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		for(int i = 0; i<100 && running; i++){
+			Identifier id = Identifier.newBuilder()
+					.setClientId(conf.getDbClientId())
+					.setMessageId(IDGenerator.getNextId()).build();
 
-				try {
-					Thread.sleep(10);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+			LogEntry entry = LogEntry.newBuilder()
+					.setEntryId(id)
+					.setKey("Key"+i)
+					.setClientSocketAddress(conf.getBufferServerSocketAddress().toString())
+					.setOperation("Opt.add(pfffff)").build();
+
+			channel.write(entry).addListener(new ChannelFutureListener() {
+				@Override
+				public void operationComplete(ChannelFuture future) throws Exception {
+					// TODO Auto-generated method stub
+			//		if(future.isSuccess())
+				//		sentMessages.add(id);
 				}
-				if(f.awaitUninterruptibly().isSuccess())
-					;
-				else
-					;
-			}
-		//}
-	
+			});
+
+		}
+		System.out.println("Sent "+sentMessages);
+		System.out.println("Rec "+receivedMessages);
 	}
-
-
-
 }

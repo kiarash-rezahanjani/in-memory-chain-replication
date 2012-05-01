@@ -64,10 +64,11 @@ public class CliSerTest {
 			dbcliThread = new Thread( new DBClient(new Configuration("applicationProperties3"), "localhost", 2111));
 			dbcliThread.start();
 
-			dbcliThread = new Thread( new DBClient(new Configuration("applicationProperties4"), "localhost", 2112));
-			dbcliThread.start();
+	//		dbcliThread1 = new Thread( new DBClient(new Configuration("applicationProperties4"), "localhost", 2112));
+	//		dbcliThread1.start();
 			
 			dbcliThread.join();
+		//	dbcliThread1.join();
 
 
 		}catch(Exception e)
@@ -83,6 +84,9 @@ public class CliSerTest {
 
 	//test only the ensemble servers
 	private static void Test2() {
+		ChainManager cm = null;
+		ChainManager cm1 = null;
+		ChainManager cm2 = null;
 		try{
 			List<InetSocketAddress> addresses = new ArrayList<InetSocketAddress>();
 			addresses.add(new InetSocketAddress("localhost", 1111));
@@ -97,24 +101,26 @@ public class CliSerTest {
 
 			//ensemble = new Ensemble(conf, addresses);
 
-			ChainManager cm = new ChainManager(conf);
-			ChainManager cm1 = new ChainManager(conf1);
-			ChainManager cm2 = new ChainManager(conf2);
+			cm = new ChainManager(conf);
+			cm1 = new ChainManager(conf1);
+			cm2 = new ChainManager(conf2);
 
 			Thread.sleep(1000);
 
 			boolean bcm = cm.newEnsemble(addresses);
 			boolean bcm1 = cm1.newEnsemble(addresses);
 			boolean bcm2 = cm2.newEnsemble(addresses);
-			System.out.println(cm.ensemble.getPredecessor() + " <->" + cm.ensemble.getSuccessor());
-			System.out.println(cm1.ensemble.getPredecessor() + "<->" + cm1.ensemble.getSuccessor());
-			System.out.println(cm2.ensemble.getPredecessor() + "<->" + cm2.ensemble.getSuccessor());
-			cm.close();
-			cm1.close();
-			cm2.close();
+			System.out.println(cm.ensemble.getPredecessorChannel() + " <->" + cm.ensemble.getSuccessorChannel());
+			System.out.println(cm1.ensemble.getPredecessorChannel()+ "<->" + cm1.ensemble.getSuccessorChannel());
+			System.out.println(cm2.ensemble.getPredecessorChannel() + "<->" + cm2.ensemble.getSuccessorChannel());
+
 		}catch(Exception e)
 		{
 			e.printStackTrace();
+		}finally{
+			cm.close();
+			cm1.close();
+			cm2.close();
 		}
 	}
 	/*

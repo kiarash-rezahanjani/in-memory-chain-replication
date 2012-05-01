@@ -14,9 +14,9 @@ public class DummyPersister extends AbstractPersister{
 	}
 
 	@Override
-	public LogEntry persist(LogEntry entry) {
+	public boolean persistEntry(LogEntry entry) {
 		// TODO Auto-generated method stub
-		return getPersistedMessage(entry);
+		return true;
 	}
 	
 
