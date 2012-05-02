@@ -1,11 +1,9 @@
 package JustTesting;
 
-import java.util.buffer;
-
-public class Read extends Thread{
+public class Insert extends Thread{
 	boolean running = true;
 	NaiveCircularBuffer buffer;
-	public Read(NaiveCircularBuffer buffer){
+	public Insert(NaiveCircularBuffer buffer){
 		this.buffer = buffer;
 	}
 	public void stopThread(){
@@ -24,7 +22,7 @@ public class Read extends Thread{
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-		//	buffer.add();
+	//		buffer.add();
 		}
 		
 	}

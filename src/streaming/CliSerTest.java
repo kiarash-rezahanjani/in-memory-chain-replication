@@ -6,6 +6,7 @@ import org.jboss.netty.channel.ChannelFuture;
 import client.DBClient;
 import client.Log.LogEntry;
 import ensemble.ChainManager;
+import ensemble.ChainManagerThread;
 import ensemble.CircularBuffer;
 import ensemble.Ensemble;
 import ensemble.NaiveCircularBuffer;
@@ -18,7 +19,51 @@ public class CliSerTest {
 
 	public static void main(String[] args){
 		//Test1();
-		Test3();
+		Test4();
+	}
+	private static void Test4() {
+
+
+		List<InetSocketAddress> addresses = new ArrayList<InetSocketAddress>();
+		addresses.add(new InetSocketAddress("localhost", 2111));
+		addresses.add(new InetSocketAddress("localhost", 2112));
+		addresses.add(new InetSocketAddress("localhost", 2113));
+
+		Configuration conf = new Configuration();
+		Configuration conf1 = new Configuration("applicationProperties1");
+		Configuration conf2 = new Configuration("applicationProperties2");
+		Configuration conf3 = new Configuration("applicationProperties3");
+		
+		//Ensemble ensemble;
+		ChainManagerThread cm = null;
+		ChainManagerThread cm1 =  null;
+		ChainManagerThread cm2 =  null;
+		
+		//client
+		DBClient dbcliThread = null;
+		//DBClient dbcliThread1;
+		try{
+			cm = new ChainManagerThread(conf,addresses);
+			cm.start();
+			cm1 = new ChainManagerThread(conf1,addresses);
+			cm1.start();
+			cm2 = new ChainManagerThread(conf2,addresses);
+			cm2.start();
+
+			Thread.sleep(2000);
+			dbcliThread = new DBClient(conf3 , "localhost", 2111);
+			dbcliThread.start();
+			
+		}catch(Exception e)
+		{
+			e.printStackTrace();
+		}finally{
+
+			dbcliThread.stopRunning();
+			cm.stopRunning();
+			cm1.stopRunning();
+			cm2.stopRunning();
+		}
 	}
 
 	//test client and ensembles
@@ -52,30 +97,30 @@ public class CliSerTest {
 			boolean bcm = cm.newEnsemble(addresses);
 			boolean bcm1 = cm1.newEnsemble(addresses);
 			boolean bcm2 = cm2.newEnsemble(addresses);
-			
+
 			System.out.println(bcm+ "  " +bcm1+ "   " + bcm2);
-			
-		//	System.out.println(cm.ensemble.getPredecessor() + " <->" + cm.ensemble.getSuccessor());
-		//	System.out.println(cm1.ensemble.getPredecessor() + "<->" + cm1.ensemble.getSuccessor());
-		//	System.out.println(cm2.ensemble.getPredecessor() + "<->" + cm2.ensemble.getSuccessor());
-			
-			
-			
+
+			//	System.out.println(cm.ensemble.getPredecessor() + " <->" + cm.ensemble.getSuccessor());
+			//	System.out.println(cm1.ensemble.getPredecessor() + "<->" + cm1.ensemble.getSuccessor());
+			//	System.out.println(cm2.ensemble.getPredecessor() + "<->" + cm2.ensemble.getSuccessor());
+
+
+
 			dbcliThread = new Thread( new DBClient(new Configuration("applicationProperties3"), "localhost", 2111));
 			dbcliThread.start();
 
-	//		dbcliThread1 = new Thread( new DBClient(new Configuration("applicationProperties4"), "localhost", 2112));
-	//		dbcliThread1.start();
-			
+			//		dbcliThread1 = new Thread( new DBClient(new Configuration("applicationProperties4"), "localhost", 2112));
+			//		dbcliThread1.start();
+
 			dbcliThread.join();
-		//	dbcliThread1.join();
+			//	dbcliThread1.join();
 
 
 		}catch(Exception e)
 		{
 			e.printStackTrace();
 		}finally{
-		
+
 			cm.close();
 			cm1.close();
 			cm2.close();

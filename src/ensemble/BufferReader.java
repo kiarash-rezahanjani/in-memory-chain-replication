@@ -19,6 +19,7 @@ public class BufferReader  extends Thread{
 
 	Ensemble ensemble;
 	boolean running = true;
+	//boolean ringComplete = false;
 	public BufferReader(Ensemble ensemble){
 		this.ensemble = ensemble;
 	}
@@ -27,18 +28,18 @@ public class BufferReader  extends Thread{
 		ChannelFuture future;
 		Channel channel = ensemble.getTailDbClients().get(entry.getEntryId().getClientId());
 		if(channel!=null){//if I am the tail send ack 
-			if(channel.isOpen())
+			if(channel.isConnected())
 				future = channel.write(ackMessage(entry.getEntryId()));
 			else
-				throw new Exception("Tail=>DBClient channel is not open. Channel:" + channel);
+				throw new Exception("Tail=>DBClient channel is not connected. Channel:" + channel);
 		}else{//otherwise send to next the log buffer server
 			channel = ensemble.getSuccessorChannel();
 			if(channel==null)
 				throw new Exception("Successor channel is null.");
-			if(channel.isOpen())
+			if(channel.isConnected())
 				future = channel.write(entry);
 			else
-				throw new Exception("BufferServer=>BufferServer channel is not open. Channel:" + channel);
+				throw new Exception("BufferServer=>BufferServer channel is not connected. Channel:" + channel);
 		}
 
 		future.addListener(new ChannelFutureListener() {
@@ -48,7 +49,8 @@ public class BufferReader  extends Thread{
 				if(!future.isSuccess())
 					throw new Exception("Failed to send entry to destination(Ack => client or the log => next buffer server)." + future.getCause());
 				else
-					System.out.println("Msg Buffered and delivered" +  entry.getEntryId());
+					System.out.println("Message " +  entry.getEntryId() + " delivered by " 
+				+ ensemble.getConfiguration().getBufferServerPort() + " to " + future.getChannel().getRemoteAddress());
 			}
 		});
 	}

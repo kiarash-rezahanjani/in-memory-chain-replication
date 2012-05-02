@@ -20,7 +20,7 @@ import streaming.BufferServer;
 import utility.Configuration;
 import ensemble.ClientServerCallback;
 
-public class DBClient implements Runnable{
+public class DBClient extends Thread{
 
 	Configuration conf;
 	BufferServer server;
@@ -39,7 +39,7 @@ public class DBClient implements Runnable{
 			if(msg.hasMessageType()){//check if this is a channel identification message
 				//replace with a switch
 				if(msg.getMessageType()==Type.ACK){
-					System.out.println("Client Rec Ack: " + msg.getEntryId() + " Cli: " + conf.getBufferServerSocketAddress() 
+					System.out.println("Client Rec Ack of Message " + msg.getEntryId().getMessageId() + " Cli: " + conf.getBufferServerSocketAddress() 
 							+ " From: " + msg.getClientSocketAddress());
 					receivedMessages.add(msg.getEntryId());
 					return;
@@ -106,7 +106,7 @@ public class DBClient implements Runnable{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		for(int i = 0; i<100 && running; i++){
+		for(int i = 0;  running; i++){
 			Identifier id = Identifier.newBuilder()
 					.setClientId(conf.getDbClientId())
 					.setMessageId(IDGenerator.getNextId()).build();
@@ -121,13 +121,13 @@ public class DBClient implements Runnable{
 				@Override
 				public void operationComplete(ChannelFuture future) throws Exception {
 					// TODO Auto-generated method stub
-			//		if(future.isSuccess())
-				//		sentMessages.add(id);
+					if(future.isSuccess())
+						System.out.println("Sent: " + entry.getEntryId().getMessageId());
 				}
 			});
 
 		}
-		System.out.println("Sent "+sentMessages);
-		System.out.println("Rec "+receivedMessages);
+	//	System.out.println("Sent List "+sentMessages);
+	//	System.out.println("Rec List "+receivedMessages);
 	}
 }

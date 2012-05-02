@@ -40,10 +40,10 @@ public abstract class AbstractPersister extends Thread{
 	public void removePersistedEntry(final LogEntry persistedMessage) throws Exception{
 		ensemble.getBuffer().remove(persistedMessage.getEntryId());
 		ChannelFuture channelFuture = null;
-		if(ensemble.getPredecessorChannel().isOpen())
+		if(ensemble.getPredecessorChannel().isConnected())
 			channelFuture = ensemble.getPredecessorChannel().write(persistedMessage);
 		else
-			throw new Exception("Predecessor channel is Closed!" +  ensemble.getPredecessorChannel());
+			throw new Exception("Predecessor channel is not connected!" +  ensemble.getPredecessorChannel());
 
 		if(channelFuture!=null)
 			channelFuture.addListener(new ChannelFutureListener() {
@@ -74,7 +74,7 @@ public abstract class AbstractPersister extends Thread{
 				if(persisted)
 					try {
 						removePersistedEntry(getPersistedMessage(entry));
-						System.out.println("Persisted No:"+ ++i + entry.getEntryId());
+						System.out.println("Message " + entry.getEntryId() + " Persisted by" + ensemble.getConfiguration().getBufferServerPort() + " Total No: "+  ++i);
 					} catch (Exception e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();

@@ -1,4 +1,4 @@
-package ensemble;
+package JustTesting;
 
 import java.nio.BufferOverflowException;
 import java.nio.BufferUnderflowException;
@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import client.Log.LogEntry;
 import client.Log.LogEntry.Identifier;
+import ensemble.CircularBuffer;
 
 /**
  * Only one thread uses add and one thread uses remove method and one thread uses read.
@@ -41,7 +42,7 @@ public class NaiveCircularBuffer implements CircularBuffer{
 	Object readLock = new Object();
 	Object persistLock = new Object();
 	boolean persisterWaitForReader = false;
-
+	
 	//	private Semaphore addSem ;
 	//	private Semaphore removeSem ;
 
@@ -144,24 +145,24 @@ public class NaiveCircularBuffer implements CircularBuffer{
 		}
 
 		LogEntry t = null;
-		//	if (size.get()>0 && readPosition!=writePosition) {
-		if(bufferElementStat.get(readPosition)==false)
-			try {
-				throw new Exception("Read element which doesnt exist. bufferElementStat.get(position)==false.");
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		t = (LogEntry) buffer[readPosition++];
-		bufferElementStat.set(readPosition, false);
-		readPosition = readPosition % capacity;
-		if(persisterWaitForReader == true)
-			synchronized (persistLock) {
-				print("Notify Persister by thread:" +  Thread.currentThread());
-				persistLock.notifyAll();
-			}
-
-		/*		} else {
+		if (size.get()>0 && readPosition!=writePosition) {
+			if(bufferElementStat.get(readPosition)==false)
+				try {
+					throw new Exception("Read element which doesnt exist. bufferElementStat.get(position)==false.");
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			bufferElementStat.set(readPosition, false);
+			t = (LogEntry) buffer[readPosition++];
+			readPosition = readPosition % capacity;
+			if(persisterWaitForReader == true)
+				synchronized (persistLock) {
+					print("Notify Persister by thread:" +  Thread.currentThread());
+					persistLock.notifyAll();
+				}
+				
+		} else {
 			try {
 				throw new Exception(String.valueOf(size.get()> 0) + String.valueOf(readPosition!=writePosition));
 			} catch (Exception e) {
@@ -169,7 +170,7 @@ public class NaiveCircularBuffer implements CircularBuffer{
 				e.printStackTrace();
 			}
 		}
-		 */
+
 
 		//bufferElementStat.set(readPosition, false);
 		print("Read " +  Thread.currentThread());
@@ -191,15 +192,6 @@ public class NaiveCircularBuffer implements CircularBuffer{
 			}
 		}
 
-		if(!id.hasClientId() || !id.hasMessageId())
-			try {
-				throw new Exception("Id is Null");
-			} catch (Exception e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-				System.exit(-1);
-			}
-
 		String clientId = id.getClientId(); 
 		long msgId = id.getMessageId();
 		int position = logIndex.get(clientId).get(Long.valueOf(msgId));
@@ -219,8 +211,8 @@ public class NaiveCircularBuffer implements CircularBuffer{
 
 
 		//if(size.get()==capacity-1)
-		synchronized (full) {
-			full.notifyAll();}
+			synchronized (full) {
+				full.notifyAll();}
 		print("Removed " +  Thread.currentThread());
 		//	if(size.get()==capacity-1)
 		//			notifyAll();
@@ -258,13 +250,13 @@ public class NaiveCircularBuffer implements CircularBuffer{
 				" Size=" + size.get() + 
 				" HASH: " + logIndex.toString();
 	}
-
+	
 	void print(String str){
 		String meta = "\n[RP: "+readPosition + " WP: " + writePosition + " PS: " + 
-				persistIndexQueue.size() + " c/s: " + size.get() + "/"+ capacity + " \n"; 
+					persistIndexQueue.size() + " c/s: " + size.get() + "/"+ capacity + " \n"; 
 		//System.out.println("BUFFER "+str + "  " + Thread.currentThread().getName() + meta);
-	}
-
+		}
+	
 	/*
 	public static void main(String[] args) {
 

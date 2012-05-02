@@ -32,21 +32,26 @@ public class ChainManager implements ClientServerCallback{
 
 	public ChainManager(Configuration conf) throws Exception{
 		this.conf=conf;
-		//this.sortedChainSocketAddress = sortedChainSocketAddress;
 		server = new BufferServer(conf, this);
 		client = new BufferClient(conf, this);
 	}
 
 	public boolean newEnsemble(List<InetSocketAddress> sortedChainSocketAddress) throws Exception{
 		ensemble = new Ensemble(conf,sortedChainSocketAddress);
-		//	System.out.print(" Pre:" + ensemble.getPredessessorSocketAddress() );
-		//	System.out.print("suscc "+ensemble.getSuccessorSocketAddress() );
-
-		Channel succChannel = client.connectServerToServer(ensemble.getSuccessorSocketAddress());
-		Channel predChannel = client.connectServerToServer(ensemble.getPredessessorSocketAddress());
+		Channel succChannel=null;
+		do{//loop is for testing, it should not happen to be null
+			Thread.sleep(1000);
+			succChannel = client.connectServerToServer(ensemble.getSuccessorSocketAddress());
+		}while(succChannel==null);
+		
+		Channel predChannel=null;
+		do{//loop is for testing, it should not happen to be null
+			Thread.sleep(1000);
+			predChannel = client.connectServerToServer(ensemble.getPredessessorSocketAddress());
+		}while(predChannel==null);
+		
 		if(succChannel==null || predChannel==null)
-			return false;
-		//System.out.println("ESTA NULLLLL");
+			throw new Exception("Predecessor or successor channel is null.");
 		ensemble.setSuccessor(succChannel);
 		ensemble.setPredecessor(predChannel);
 		return true;
@@ -61,33 +66,33 @@ public class ChainManager implements ClientServerCallback{
 			if(msg.hasMessageType()){//check if this is a channel identification message
 				//replace with a switch
 				if(msg.getMessageType()==Type.ACK){//should n not happen here
-					System.out.println("Client Rec Ack: " + msg.getEntryId() + " " + conf.getBufferServerSocketAddress());
+					System.out.println("DBClient Rec Ack: " + msg.getEntryId() + " from " + msg.getClientSocketAddress() + " BDClient address " + conf.getBufferServerPort());
 				}
 
 				if(msg.getMessageType()==Type.ENTRY_PERSISTED){
 					ensemble.entryPersisted(msg);
-				//	System.out.println("Server Rec Persisted: " + msg.getEntryId() + "Server: " + conf.getBufferServerSocketAddress());
+					System.out.println("Persisted Message Received by: " + conf.getBufferServerSocketAddress() + " MsgId " + msg.getEntryId() );
 				}else
 					if(unknownChannels.size()>0 && msg.getMessageType()==Type.CONNECTION_BUFFER_SERVER){
 						if(!unknownChannels.contains(e.getChannel()))
 							throw new Exception("Server received an unknown channel identification message.");
 						boolean removed = unknownChannels.remove(e.getChannel());
-						System.out.println("Server: " + conf.getBufferServerSocketAddress()+ " Client of Connection: " + msg.getClientSocketAddress()
+						System.out.println("Server " + conf.getBufferServerSocketAddress()+ " Received Connection from " + msg.getClientSocketAddress()
 								+ "Removed From UnknowList: " + removed);	
 					}else
 						if(unknownChannels.size()>0 && msg.getMessageType()==Type.CONNECTION_DB_CLIENT){
 							if(!unknownChannels.contains(e.getChannel()))
 								throw new Exception("Server received an unknown channel identification message.");
 							boolean removed = unknownChannels.remove(e.getChannel());
-							System.out.println("Server: " + conf.getBufferServerSocketAddress()+ " Client connection: " + msg.getClientSocketAddress()
-									+ "Removed From UnknowList: " +	removed );
+							System.out.println("Head Client " + msg.getClientSocketAddress() + " added to" + conf.getBufferServerSocketAddress()+
+									 "Removed From UnknowList: " +	removed );
 							//find the ensemble for the client: we have to add new field to proto : ensemble name
 							ensemble.addHeadDBClient(msg.getEntryId().getClientId(), msg.getClientSocketAddress(), e.getChannel());
 						}else
 							if(msg.getMessageType()==Type.TAIL_NOTIFICATION){
 								Channel tailChannel = client.connectServerToClient(NetworkUtil.parseInetSocketAddress(msg.getClientSocketAddress()));
 								ensemble.addTailDBClient(msg.getEntryId().getClientId(), tailChannel);
-								System.out.println("TAIL MSG: " + msg.getEntryId() + " Tail add:" + conf.getBufferServerSocketAddress());
+								System.out.println("Tail CLient " + msg.getEntryId().getClientId() + " added to " + conf.getBufferServerSocketAddress());
 							}
 
 			}else
@@ -109,7 +114,7 @@ public class ChainManager implements ClientServerCallback{
 	@Override
 	public void channelClosed(ChannelStateEvent e) {
 		// TODO Auto-generated method stub
-
+		closeOnFlush(e.getChannel(), "chennelClosed.Stat:" + e.getState());
 	}
 
 	@Override
@@ -123,18 +128,23 @@ public class ChainManager implements ClientServerCallback{
 	@Override
 	public void exceptionCaught(ExceptionEvent e) {
 		// TODO Auto-generated method stub
-		closeOnFlush(e.getChannel());
+		
+		closeOnFlush(e.getChannel(), "exceptioncaught " + e.getCause().toString());
 	}
 
-	static void closeOnFlush(Channel ch) {
+	static void closeOnFlush(Channel ch, String cause) {
 		if (ch.isConnected()) {
+			System.out.println("\n\nClosing the channel " +  ch + " by "  );
 			ch.write(ChannelBuffers.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
 		}
 	}
 
 	public void close(){
+		ensemble.close();
 		server.stop();
 		client.stop();
+		
 	}
+
 	
 }

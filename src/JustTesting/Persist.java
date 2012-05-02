@@ -1,13 +1,11 @@
 package JustTesting;
 
-import java.util.List;
-
 public class Persist extends Thread{
 
 	boolean running = true;
-	StrList list;
-	public Persist(StrList list){
-		this.list = list;
+	NaiveCircularBuffer buffer;
+	public Persist(NaiveCircularBuffer buffer){
+		this.buffer = buffer;
 	}
 	public void stopThread(){
 		running = false;
@@ -16,9 +14,7 @@ public class Persist extends Thread{
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
-		
-		
-		
+
 		while(running){
 			try {
 				Thread.sleep(300);
@@ -26,7 +22,7 @@ public class Persist extends Thread{
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			list.remove();
+			//buffer.remove();
 		}
 		
 	}

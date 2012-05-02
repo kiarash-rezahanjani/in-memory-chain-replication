@@ -103,10 +103,10 @@ public class Ensemble {
 				.setClientSocketAddress(clientSocketAddress)
 				.build();
 		ChannelFuture future;
-		if(predecessorChannel.isOpen())
+		if(predecessorChannel.isConnected())
 			future = predecessorChannel.write(tailNotify);
 		else
-			throw new Exception("Predecessor channel is Closed!" + predecessorChannel);
+			throw new Exception("Predecessor channel is Not Connected!" + predecessorChannel);
 		//	if(future.isSuccess()){
 		headDbClients.put(clientId, channel);
 		return true;
@@ -134,22 +134,27 @@ public class Ensemble {
 
 	public void entryPersisted(final LogEntry entry) throws Exception{
 		buffer.remove(entry.getEntryId());
+		
 		ChannelFuture channelFuture = null;
 		if(!headDbClients.containsKey(entry.getEntryId().getClientId()))
-			if(predecessorChannel.isOpen())
+			if(predecessorChannel.isConnected())
 				channelFuture = predecessorChannel.write(entry);
-			else
-				throw new Exception("Predecessor channel is Closed!" +  predecessorChannel);
-
+			else{
+			
+				throw new Exception("Predecessor channel is Not Connected!" +  predecessorChannel
+						+ predecessorChannel.isBound() +predecessorChannel.isConnected() + 
+						predecessorChannel.isOpen() + predecessorChannel.isWritable());
+			}
 		if(channelFuture!=null)
 			channelFuture.addListener(new ChannelFutureListener() {
 				@Override
 				public void operationComplete(ChannelFuture future) throws Exception {
 					// TODO Auto-generated method stub
 					if(!future.isSuccess())
-						throw new Exception("Persisted Message failed to deliver." + Thread.currentThread() + " "+  future.getCause());
+						throw new Exception("Persisted Message failed to deliver." + Thread.currentThread() + " Channel: "+ future.getChannel() + " " +  future.getCause());
 				}
 			});
+		print(" Message " + entry.getEntryId() + " Removed by " + conf.getBufferServerPort() );
 	}
 
 	public void addToBuffer(final LogEntry entry) throws Exception{
@@ -174,6 +179,7 @@ public class Ensemble {
 			}
 		});
 	*/	buffer.add(entry);
+	print("Message " + entry.getEntryId().getMessageId() + " buffered by " +  conf.getBufferServerPort());
 
 	}
 	void print(String str){
