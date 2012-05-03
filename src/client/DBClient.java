@@ -4,6 +4,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
@@ -28,10 +29,13 @@ public class DBClient extends Thread{
 	InetSocketAddress serverSocketAddress;
 	List<Identifier> sentMessages = new ArrayList<Identifier>();
 	List<Identifier> receivedMessages = new ArrayList<Identifier>();
+	Channel headServer;
+	Channel tailServer;
+	int connRetry  = 5;//milisecond
 	boolean running=true;
 	volatile boolean stop = false; 
-	ClientServerCallback callback = new ClientServerCallback() {
 
+	ClientServerCallback callback = new ClientServerCallback() {
 		@Override
 		public void serverReceivedMessage(MessageEvent e) {
 			// TODO Auto-generated method stub
@@ -39,14 +43,17 @@ public class DBClient extends Thread{
 			if(msg.hasMessageType()){//check if this is a channel identification message
 				//replace with a switch
 				if(msg.getMessageType()==Type.ACK){
-					System.out.println("Client Rec Ack of Message " + msg.getEntryId().getMessageId() + " Cli: " + conf.getBufferServerSocketAddress() 
-							+ " From: " + msg.getClientSocketAddress());
+					System.out.println("Rec Ack of Message " + msg.getEntryId().getMessageId() 	+ " From: " + msg.getClientSocketAddress());
 					receivedMessages.add(msg.getEntryId());
+					if(msg.getEntryId().getMessageId()==55){
+					e.getChannel().disconnect();
+						System.exit(-1);
+					}
 					return;
 				}
 				if(msg.getMessageType()==Type.CONNECTION_TAIL_TO_DB_CLIENT){
+					tailServer = e.getChannel();
 					System.out.println("Tail to Db Client: from" + msg.getClientSocketAddress() );
-
 					return;
 				}
 			}
@@ -63,6 +70,7 @@ public class DBClient extends Thread{
 		public void exceptionCaught(ExceptionEvent e) {
 			// TODO Auto-generated method stub
 			System.out.println("Client accepted connection: " + e.getChannel());
+			closeOnFlush(e.getChannel(), e.getCause().toString());
 		}
 
 		@Override
@@ -75,6 +83,14 @@ public class DBClient extends Thread{
 		public void channelClosed(ChannelStateEvent e) {
 			// TODO Auto-generated method stub
 			System.out.println("Client receievd closed.");
+			closeOnFlush(e.getChannel(), e.getValue().toString());
+		}
+
+		void closeOnFlush(Channel ch, String cause) {
+			if (ch.isConnected()) {
+				System.out.println("\n\nClosing the channel " +  ch + " by "  );
+				ch.write(ChannelBuffers.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+			}
 		}
 	};
 
@@ -98,36 +114,44 @@ public class DBClient extends Thread{
 
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
-		Channel channel = client.connectClientToServer(serverSocketAddress);
-		try {
-			Thread.sleep(100);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		for(int i = 0;  running; i++){
-			Identifier id = Identifier.newBuilder()
-					.setClientId(conf.getDbClientId())
-					.setMessageId(IDGenerator.getNextId()).build();
-
-			LogEntry entry = LogEntry.newBuilder()
-					.setEntryId(id)
-					.setKey("Key"+i)
-					.setClientSocketAddress(conf.getBufferServerSocketAddress().toString())
-					.setOperation("Opt.add(pfffff)").build();
-
-			channel.write(entry).addListener(new ChannelFutureListener() {
-				@Override
-				public void operationComplete(ChannelFuture future) throws Exception {
-					// TODO Auto-generated method stub
-				//	if(future.isSuccess())
-						//System.out.println("Sent: " + entry.getEntryId().getMessageId());
+		while(running){
+			//Get the head and tail address and connect to head
+			IDGenerator idGenerator = new IDGenerator();
+			headServer = client.connectClientToServer(serverSocketAddress);
+			
+			while( tailServer==null || headServer==null || !headServer.isConnected() ||  !tailServer.isConnected()){
+				try {
+					Thread.sleep(connRetry);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
-			});
+			}
+			
+			for(long i = 0;  running; i++){
+				Identifier id = Identifier.newBuilder()
+						.setClientId(conf.getDbClientId())
+						.setMessageId(idGenerator.getNextId()).build();
+
+				LogEntry entry = LogEntry.newBuilder()
+						.setEntryId(id)
+						.setKey("Key"+i)
+						.setClientSocketAddress(conf.getBufferServerSocketAddress().toString())
+						.setOperation("Opt.add(pfffff)").build();
+
+				System.out.println("Sending " + entry.getEntryId().getMessageId() );
+
+				headServer.write(entry).awaitUninterruptibly();
+
+				try {
+					Thread.sleep(10);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+
+			}
 
 		}
-	//	System.out.println("Sent List "+sentMessages);
-	//	System.out.println("Rec List "+receivedMessages);
 	}
 }

@@ -265,6 +265,12 @@ public class NaiveCircularBuffer implements CircularBuffer{
 		//System.out.println("BUFFER "+str + "  " + Thread.currentThread().getName() + meta);
 	}
 
+	@Override
+	public void readComplete(Identifier id) {
+		// TODO Auto-generated method stub
+		
+	}
+
 	/*
 	public static void main(String[] args) {
 

@@ -1,5 +1,8 @@
 package ensemble;
 
+import java.util.HashMap;
+import java.util.HashSet;
+
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
@@ -19,6 +22,8 @@ public class BufferReader  extends Thread{
 
 	Ensemble ensemble;
 	boolean running = true;
+	//HashSet<Identifier> failedDelivery = new HashSet<Identifier>(1000);
+	HashMap<String, Long> lastMessageDelivered = new HashMap<String,Long>();// it can be done in a better way without consuming cpu for hashing
 	//boolean ringComplete = false;
 	public BufferReader(Ensemble ensemble){
 		this.ensemble = ensemble;
@@ -41,18 +46,7 @@ public class BufferReader  extends Thread{
 			else
 				throw new Exception("BufferServer=>BufferServer channel is not connected. Channel:" + channel);
 		}
-
-		future.addListener(new ChannelFutureListener() {
-			@Override
-			public void operationComplete(ChannelFuture future) throws Exception {
-				// TODO Auto-generated method stub
-				if(!future.isSuccess())
-					throw new Exception("Failed to send entry to destination(Ack => client or the log => next buffer server)." + future.getCause());
-				else
-					System.out.println("Message " +  entry.getEntryId() + " delivered by " 
-				+ ensemble.getConfiguration().getBufferServerPort() + " to " + future.getChannel().getRemoteAddress());
-			}
-		});
+		future.addListener(new MessageFutureListener(entry.getEntryId())) ;
 	}
 
 	LogEntry ackMessage(Identifier id){
@@ -66,6 +60,26 @@ public class BufferReader  extends Thread{
 		interrupt();
 	}
 
+	public class MessageFutureListener implements ChannelFutureListener{
+		Identifier id;
+		public MessageFutureListener(Identifier id){
+			this.id = id;
+			ensemble.buffer.readComplete(id);
+		}
+		@Override
+		public void operationComplete(ChannelFuture future) throws Exception {
+			// TODO Auto-generated method stub
+			if(future.isSuccess()){
+				ensemble.buffer.readComplete(id);
+				lastMessageDelivered.put(id.getClientId(), id.getMessageId());
+			}
+			else{
+			//	failedDelivery.add(id);
+				//lastMessageDelivered.put(id.getClientId(), Long.valueOf(id.getMessageId()) ); 
+			}
+		}
+		
+	}
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
@@ -76,6 +90,7 @@ public class BufferReader  extends Thread{
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+		//	System.out.println("Failed to deliver to next destination" + failedDelivery.size());
 		}
 
 	}

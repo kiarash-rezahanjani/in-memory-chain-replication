@@ -14,7 +14,7 @@ public interface CircularBuffer {
 	 * @return
 	 */
 	public LogEntry nextToRead();
-	
+	public void readComplete(Identifier id);
 	/**
 	 * Return the next element in the buffer that has to be persisted by this 
 	 * buffer server. This method does not remove the entry from the buffer

@@ -50,10 +50,23 @@ public class ChainManager implements ClientServerCallback{
 			predChannel = client.connectServerToServer(ensemble.getPredessessorSocketAddress());
 		}while(predChannel==null);
 		
+		
 		if(succChannel==null || predChannel==null)
 			throw new Exception("Predecessor or successor channel is null.");
 		ensemble.setSuccessor(succChannel);
 		ensemble.setPredecessor(predChannel);
+		
+		//for broadcasting the persisted messages---------
+		for(InetSocketAddress socketAddress : sortedChainSocketAddress){
+			if(NetworkUtil.isEqualAddress(socketAddress, ensemble.getPredessessorSocketAddress())
+				||NetworkUtil.isEqualAddress(socketAddress, conf.getBufferServerSocketAddress()))
+				continue;
+			ensemble.getpeersChannelHandle().add( 
+					client.connectServerToServer(socketAddress) );
+			}
+		ensemble.getpeersChannelHandle().add(predChannel);
+		System.out.println("/n/nPEER CHANNEL" + ensemble.getpeersChannelHandle());
+		//-------------------
 		return true;
 	}
 
@@ -71,7 +84,7 @@ public class ChainManager implements ClientServerCallback{
 
 				if(msg.getMessageType()==Type.ENTRY_PERSISTED){
 					ensemble.entryPersisted(msg);
-					System.out.println("Persisted Message Received by: " + conf.getBufferServerSocketAddress() + " MsgId " + msg.getEntryId() );
+					System.out.println("Persisted Message Received by: " + conf.getBufferServerSocketAddress() + " MsgId " + msg.getEntryId() + " From " +  msg.getClientSocketAddress());
 				}else
 					if(unknownChannels.size()>0 && msg.getMessageType()==Type.CONNECTION_BUFFER_SERVER){
 						if(!unknownChannels.contains(e.getChannel()))

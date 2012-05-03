@@ -1,6 +1,7 @@
 package ensemble;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -22,6 +23,7 @@ public class Ensemble {
 	List<InetSocketAddress> sortedChainSocketAddress;
 	Channel successorChannel;//to send logs
 	Channel predecessorChannel;//to send remove message
+	List<Channel> peersChannel = new ArrayList<Channel>();
 	HashMap<String, Channel> headDbClients = new HashMap<String, Channel>();//receive logs <clientId, channel>
 	HashMap<String, Channel> tailDbClients = new HashMap<String, Channel>();//send ack
 	final Configuration conf;
@@ -50,7 +52,8 @@ public class Ensemble {
 		this.sortedChainSocketAddress = sortedChainSocketAddress;
 		if(sortedChainSocketAddress.size()<2)
 			throw new Exception("obj.chain Ensemble size < 2 ");
-		buffer = new NaiveCircularBuffer(conf.getEnsembleBufferSize(),tailDbClients.keySet());
+	//	buffer = new NaiveCircularBuffer(conf.getEnsembleBufferSize(),tailDbClients.keySet());
+		buffer = new ConcurrentCircularBuffer(conf.getEnsembleBufferSize(),tailDbClients.keySet());
 		persister = new DummyPersister(this);
 		bufferReader = new BufferReader(this);
 		persister.start();
@@ -59,6 +62,11 @@ public class Ensemble {
 		print("persister"+persister.getName());
 		print("reader"+bufferReader.getName());
 	}
+	
+	public List<Channel>  getpeersChannelHandle(){
+		return peersChannel;
+	}
+	
 	public InetSocketAddress getSuccessorSocketAddress() throws Exception{
 		int index = getLocalAddressIndex();
 		if(index<0)
@@ -134,7 +142,7 @@ public class Ensemble {
 
 	public void entryPersisted(final LogEntry entry) throws Exception{
 		buffer.remove(entry.getEntryId());
-		
+/*		
 		ChannelFuture channelFuture = null;
 		if(!headDbClients.containsKey(entry.getEntryId().getClientId()))
 			if(predecessorChannel.isConnected())
@@ -154,6 +162,7 @@ public class Ensemble {
 						throw new Exception("Persisted Message failed to deliver." + Thread.currentThread() + " Channel: "+ future.getChannel() + " " +  future.getCause());
 				}
 			});
+		*/
 		print(" Message " + entry.getEntryId() + " Removed by " + conf.getBufferServerPort() );
 	}
 
@@ -179,7 +188,7 @@ public class Ensemble {
 			}
 		});
 	*/	buffer.add(entry);
-	print("Message " + entry.getEntryId().getMessageId() + " buffered by " +  conf.getBufferServerPort());
+	//print("Buffered " + entry.getEntryId().getMessageId() );
 
 	}
 	void print(String str){

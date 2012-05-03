@@ -137,6 +137,16 @@ public class NetworkUtil
 		
 	}
 	
+	public static boolean isEqualAddress(InetSocketAddress inetSocketAddress1, InetSocketAddress inetSocketAddress2){
+		int port1 = inetSocketAddress1.getPort();
+		String host1 = inetSocketAddress1.getAddress().getHostAddress();
+		int port2 = inetSocketAddress2.getPort();
+		String host2 = inetSocketAddress2.getAddress().getHostAddress();
+
+		return (host1.equals(host2) && port1==port2);
+		
+	}
+	
 	public static boolean contains(List<InetSocketAddress> iNetSocketAddressList, String strSocketAddress)
 	{
 		for(InetSocketAddress inetSocketAddress : iNetSocketAddressList){
