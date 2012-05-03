@@ -121,8 +121,8 @@ public class DBClient extends Thread{
 				@Override
 				public void operationComplete(ChannelFuture future) throws Exception {
 					// TODO Auto-generated method stub
-					if(future.isSuccess())
-						System.out.println("Sent: " + entry.getEntryId().getMessageId());
+				//	if(future.isSuccess())
+						//System.out.println("Sent: " + entry.getEntryId().getMessageId());
 				}
 			});
 

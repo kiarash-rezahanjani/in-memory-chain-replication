@@ -1,13 +1,21 @@
 package streaming;
 
+import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
+import org.jboss.netty.channel.ChannelFutureListener;
+import org.jboss.netty.channel.ChannelStateEvent;
+import org.jboss.netty.channel.ExceptionEvent;
+import org.jboss.netty.channel.MessageEvent;
 
 import client.DBClient;
+import client.IDGenerator;
 import client.Log.LogEntry;
+import client.Log.LogEntry.Identifier;
 import ensemble.ChainManager;
 import ensemble.ChainManagerThread;
 import ensemble.CircularBuffer;
+import ensemble.ClientServerCallback;
 import ensemble.Ensemble;
 import ensemble.NaiveCircularBuffer;
 
@@ -19,8 +27,93 @@ public class CliSerTest {
 
 	public static void main(String[] args){
 		//Test1();
-		Test4();
+		Test5();
 	}
+	private static void Test5() {
+		ClientServerCallback calback = new ClientServerCallback() {
+
+			@Override
+			public void serverReceivedMessage(MessageEvent e) {
+				// TODO Auto-generated method stub
+				System.out.println("server got  " + ((LogEntry)e.getMessage()).getEntryId());
+				if(((LogEntry)e.getMessage()).getEntryId().getMessageId()==2)
+					e.getChannel().disconnect();
+			}
+
+			@Override
+			public void serverAcceptedConnection(ChannelStateEvent e) {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void exceptionCaught(ExceptionEvent e) {
+				// TODO Auto-generated method stub
+				if (e.getChannel().isConnected()) {
+					System.out.println("\n\nClosing the channel " +  e.getChannel() + " by "  );
+					e.getChannel().write(ChannelBuffers.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+				}
+			}
+
+			@Override
+			public void clientReceivedMessage(MessageEvent e) {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void channelClosed(ChannelStateEvent e) {
+				// TODO Auto-generated method stub
+				if (e.getChannel().isConnected()) {
+					System.out.println("\n\nClosing the channel " +  e.getChannel() + " by "  );
+		//			e.getChannel().write(ChannelBuffers.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+				}
+
+			}
+		};
+		Configuration conf = new Configuration();
+		BufferServer server = new BufferServer(conf, calback);
+		BufferClient client = new BufferClient(conf, calback);
+
+		Channel ch = client.connectServerToServer(conf.getBufferServerSocketAddress());
+		try {
+			Thread.sleep(100);
+		} catch (InterruptedException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		for(int i = 0 ; i<10; i++){
+			
+			Identifier id = Identifier.newBuilder()
+					.setClientId(conf.getDbClientId())
+					.setMessageId(1).build();
+
+			LogEntry entry = LogEntry.newBuilder()
+					.setEntryId(Identifier.newBuilder().setClientId("clie1").setMessageId(i).build())
+					.setKey("Key")
+					.setClientSocketAddress(conf.getBufferServerSocketAddress().toString())
+					.setOperation("Opt.add(pfffff)").build();
+
+			ch.write(entry ).addListener(new Listener(entry.getEntryId().getMessageId()));
+		}
+
+	}
+	public static class Listener implements ChannelFutureListener{
+
+		public long id ;
+		Listener(long id){
+			this.id = id ;
+		}
+		@Override
+		public void operationComplete(ChannelFuture future) throws Exception {
+			// TODO Auto-generated method stub
+			if(future.isSuccess()){
+				System.out.println("Success for " + id);
+			}
+		}
+		
+	} 
+	
 	private static void Test4() {
 
 
@@ -33,12 +126,12 @@ public class CliSerTest {
 		Configuration conf1 = new Configuration("applicationProperties1");
 		Configuration conf2 = new Configuration("applicationProperties2");
 		Configuration conf3 = new Configuration("applicationProperties3");
-		
+
 		//Ensemble ensemble;
 		ChainManagerThread cm = null;
 		ChainManagerThread cm1 =  null;
 		ChainManagerThread cm2 =  null;
-		
+
 		//client
 		DBClient dbcliThread = null;
 		//DBClient dbcliThread1;
@@ -53,7 +146,7 @@ public class CliSerTest {
 			Thread.sleep(2000);
 			dbcliThread = new DBClient(conf3 , "localhost", 2111);
 			dbcliThread.start();
-			
+
 		}catch(Exception e)
 		{
 			e.printStackTrace();
