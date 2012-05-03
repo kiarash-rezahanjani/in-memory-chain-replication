@@ -109,6 +109,7 @@ public class ChainManager implements ClientServerCallback{
 	public void clientReceivedMessage(MessageEvent e) {
 		// TODO Auto-generated method stub
 		//either remove or tail
+		
 	}
 
 	@Override
