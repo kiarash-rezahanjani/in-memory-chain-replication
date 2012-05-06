@@ -19,7 +19,7 @@ public class BufferClientHandler extends SimpleChannelHandler{
     @Override
     public void messageReceived(
             ChannelHandlerContext ctx, MessageEvent e) {
-    	callback.clientReceivedMessage(e);
+    	//callback.clientReceivedMessage(e);
     }
 
     @Override

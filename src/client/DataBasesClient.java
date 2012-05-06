@@ -21,12 +21,15 @@ public class DataBasesClient {
 		DBClient dbcliThread =null;
 		try {
 			dbcliThread = new DBClient( new Configuration(args[0]) , "localhost", 2111);
-			dbcliThread.start();
+			dbcliThread.run();
+
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			dbcliThread.stopRunning();
+			dbcliThread.stop();
 		//	System.exit(-1);
+		}finally{
+			
 		}
 		
 	}

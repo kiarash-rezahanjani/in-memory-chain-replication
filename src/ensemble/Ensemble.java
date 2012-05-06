@@ -3,7 +3,9 @@ package ensemble;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
@@ -23,11 +25,15 @@ public class Ensemble {
 	List<InetSocketAddress> sortedChainSocketAddress;
 	Channel successorChannel;//to send logs
 	Channel predecessorChannel;//to send remove message
-	List<Channel> peersChannel = new ArrayList<Channel>();
+	List<Channel> peersChannel = new ArrayList<Channel>();//contains channels connecting to all members of the ensemble including itself, use to broadcast the messages
 	HashMap<String, Channel> headDbClients = new HashMap<String, Channel>();//receive logs <clientId, channel>
 	HashMap<String, Channel> tailDbClients = new HashMap<String, Channel>();//send ack
+	HashMap<String, Long> lastDeliveredMessage = new HashMap<String,Long>();//<clientId, msgId> last message acknowledged to client to delivered to next buffer server
+	HashMap<String, Long> lastPersistedMessage = new HashMap<String,Long>();//<clientId, msgId> last message persisted to client to delivered to next buffer server
+	HashMap<String, Identifier> clientFailed = new HashMap<String,Identifier>();
+
 	final Configuration conf;
-	
+
 	AbstractPersister persister;
 	BufferReader bufferReader;
 
@@ -52,21 +58,75 @@ public class Ensemble {
 		this.sortedChainSocketAddress = sortedChainSocketAddress;
 		if(sortedChainSocketAddress.size()<2)
 			throw new Exception("obj.chain Ensemble size < 2 ");
-	//	buffer = new NaiveCircularBuffer(conf.getEnsembleBufferSize(),tailDbClients.keySet());
+		//	buffer = new NaiveCircularBuffer(conf.getEnsembleBufferSize(),tailDbClients.keySet());
 		buffer = new ConcurrentCircularBuffer(conf.getEnsembleBufferSize(),tailDbClients.keySet());
 		persister = new DummyPersister(this);
 		bufferReader = new BufferReader(this);
 		persister.start();
 		bufferReader.start();
-	
+
 		print("persister"+persister.getName());
 		print("reader"+bufferReader.getName());
 	}
+
+	//for testing : this hould be done through zookeeper
+	void channelClosed(Channel channel){
+		if(tailDbClients.values().contains(channel)){
+			Iterator it = tailDbClients.entrySet().iterator();
+			String clientId = null;
+			while(it.hasNext()){
+				Map.Entry<String, Channel> entry =(Map.Entry<String, Channel>) it.next();
+				if(channel.equals(entry.getValue())){
+					clientId = entry.getKey();
+					Identifier id = Identifier.newBuilder().setClientId(clientId).setMessageId(lastDeliveredMessage.get(clientId).longValue()).build();
+					broadcastChannel(LogEntry.newBuilder().setMessageType(Type.LAST_ACK_SENT_TO_FAILED_CLIENT)
+							.setEntryId(id).build());
+					channel.close();
+			//		tailDbClients.remove(clientId);
+				}				
+			}	
+		}
+		
+		if(headDbClients.values().contains(channel)){
+			Iterator it = tailDbClients.entrySet().iterator();
+			String clientId = null;
+			while(it.hasNext()){
+				Map.Entry<String, Channel> entry =(Map.Entry<String, Channel>) it.next();
+				if(channel.equals(entry.getValue())){
+					entry.getValue().close();
+				}				
+			}	
+		}
+	}
+
+	public void clientFailed(Identifier lastAck){
+/*		clientFailed.put(lastAck.getClientId(), lastAck);
+		
+		if(tailDbClients.containsKey(lastAck.getClientId()))
+			tailDbClients.get(lastAck.getClientId()).close();
 	
-	public List<Channel>  getpeersChannelHandle(){
+		if(headDbClients.containsKey(lastAck.getClientId()))
+			headDbClients.get(lastAck.getClientId()).close();
+*/		
+		print("Last Acked ID: " + lastAck);
+	}
+
+	public void releaseResourcesOfFailedClient(String clientId){
+
+	}
+
+	public List<Channel>  getPeersChannelHandle(){
 		return peersChannel;
 	}
-	
+
+	public HashMap<String, Long> getLastDeliveredMessageHandle(){
+		return lastDeliveredMessage;
+	}
+
+	public HashMap<String, Long> getLastPersistedMessageHandle(){
+		return lastPersistedMessage;
+	}
+
 	public InetSocketAddress getSuccessorSocketAddress() throws Exception{
 		int index = getLocalAddressIndex();
 		if(index<0)
@@ -102,6 +162,19 @@ public class Ensemble {
 	}
 	public CircularBuffer getBuffer() {
 		return buffer;
+	}
+
+	public void broadcastChannel(final LogEntry message) {
+		for(Channel peer : peersChannel){
+			peer.write(message).addListener(new ChannelFutureListener() {
+				@Override
+				public void operationComplete(ChannelFuture future) throws Exception {
+					// TODO Auto-generated method stub
+					if(future.isSuccess())
+						;
+				}
+			});
+		}
 	}
 
 	public boolean addHeadDBClient(String clientId, String clientSocketAddress, Channel channel) throws Exception{
@@ -142,13 +215,13 @@ public class Ensemble {
 
 	public void entryPersisted(final LogEntry entry) throws Exception{
 		buffer.remove(entry.getEntryId());
-/*		
+		/*		
 		ChannelFuture channelFuture = null;
 		if(!headDbClients.containsKey(entry.getEntryId().getClientId()))
 			if(predecessorChannel.isConnected())
 				channelFuture = predecessorChannel.write(entry);
 			else{
-			
+
 				throw new Exception("Predecessor channel is Not Connected!" +  predecessorChannel
 						+ predecessorChannel.isBound() +predecessorChannel.isConnected() + 
 						predecessorChannel.isOpen() + predecessorChannel.isWritable());
@@ -162,16 +235,16 @@ public class Ensemble {
 						throw new Exception("Persisted Message failed to deliver." + Thread.currentThread() + " Channel: "+ future.getChannel() + " " +  future.getCause());
 				}
 			});
-		*/
-		print(" Message " + entry.getEntryId() + " Removed by " + conf.getBufferServerPort() );
+		 */
+	//	print(" Message " + entry.getEntryId() + " Removed by " + conf.getBufferServerPort() );
 	}
 
 	public void addToBuffer(final LogEntry entry) throws Exception{
-/*		Channel channel = tailDbClients.get(entry.getEntryId().getClientId());
+		/*		Channel channel = tailDbClients.get(entry.getEntryId().getClientId());
 		ChannelFuture future;
 		if(channel==null)
 			channel = successorChannel;
-		
+
 		if(channel==null || !channel.isOpen())
 			throw new Exception("Attempt to send data while channel is not open or its null. Chenl: " + channel );
 		else
@@ -187,15 +260,16 @@ public class Ensemble {
 					System.out.println("Msg Buffered and delivered" +  entry.getEntryId());
 			}
 		});
-	*/	buffer.add(entry);
-	//print("Buffered " + entry.getEntryId().getMessageId() );
+		 */	buffer.add(entry);
+		 //print("Buffered " + entry.getEntryId().getMessageId() );
 
 	}
 	void print(String str){
 		//String meta = "\n[RP: "+readPosition + " WP: " + writePosition + " PS: " + 
-			//		persistIndexQueue.size() + " c/s: " + size.get() + "/"+ capacity + " \n"; 
-		System.out.println("ENSEMBLE "+ str );}
-	
+		//		persistIndexQueue.size() + " c/s: " + size.get() + "/"+ capacity + " \n"; 
+		System.out.println("ENSEMBLE "+ str );
+		}
+
 	public void removeClient(){
 
 	}

@@ -24,7 +24,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 public class CliSerTest {
-
+/*
 	public static void main(String[] args){
 		//Test1();
 		Test5();

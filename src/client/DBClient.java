@@ -1,5 +1,8 @@
 package client;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,21 +22,25 @@ import client.Log.LogEntry.Type;
 import streaming.BufferClient;
 import streaming.BufferServer;
 import utility.Configuration;
+import utility.LatencyEvaluator;
 import ensemble.ClientServerCallback;
+import ensemble.Ensemble;
 
-public class DBClient extends Thread{
+public class DBClient {
 
 	Configuration conf;
 	BufferServer server;
 	BufferClient client;
 	InetSocketAddress serverSocketAddress;
-	List<Identifier> sentMessages = new ArrayList<Identifier>();
-	List<Identifier> receivedMessages = new ArrayList<Identifier>();
+	//List<Identifier> sentMessages = new ArrayList<Identifier>();
+	//List<Identifier> receivedMessages = new ArrayList<Identifier>();
 	Channel headServer;
 	Channel tailServer;
-	int connRetry  = 5;//milisecond
-	boolean running=true;
-	volatile boolean stop = false; 
+	int connRetry  = 1000;//millisecond
+	LoadGenerator loadGeneratorThread ;
+	LatencyEvaluator latencyEvaluator ;
+	//boolean running=true;
+	//volatile boolean stop = false; 
 
 	ClientServerCallback callback = new ClientServerCallback() {
 		@Override
@@ -43,17 +50,21 @@ public class DBClient extends Thread{
 			if(msg.hasMessageType()){//check if this is a channel identification message
 				//replace with a switch
 				if(msg.getMessageType()==Type.ACK){
-					System.out.println("Rec Ack of Message " + msg.getEntryId().getMessageId() 	+ " From: " + msg.getClientSocketAddress());
-					receivedMessages.add(msg.getEntryId());
-					if(msg.getEntryId().getMessageId()==55){
-					e.getChannel().disconnect();
+					latencyEvaluator.received(msg.getEntryId());
+				//	System.out.println("Rec Ack of Message " + msg.getEntryId().getMessageId() 	+ " From: " + msg.getClientSocketAddress());
+					//receivedMessages.add(msg.getEntryId());
+					if(msg.getEntryId().getMessageId()==1000){
+						loadGeneratorThread.stopLoad();
+						latencyEvaluator.report();
+						headServer.close();
+						tailServer.close();
 						System.exit(-1);
 					}
 					return;
 				}
 				if(msg.getMessageType()==Type.CONNECTION_TAIL_TO_DB_CLIENT){
 					tailServer = e.getChannel();
-					System.out.println("Tail to Db Client: from" + msg.getClientSocketAddress() );
+					System.out.println("Ready to stream." + msg.getClientSocketAddress() );
 					return;
 				}
 			}
@@ -90,14 +101,21 @@ public class DBClient extends Thread{
 			if (ch.isConnected()) {
 				System.out.println("\n\nClosing the channel " +  ch + " by "  );
 				ch.write(ChannelBuffers.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+			}else
+			{
+				headServer.close();
+				tailServer.close();
 			}
 		}
 	};
+
 
 	public DBClient(Configuration conf){
 		this.conf = conf;
 		server = new BufferServer(conf, callback);
 		client = new BufferClient(conf, callback);
+		latencyEvaluator = new LatencyEvaluator();
+
 	}
 
 	//for testing
@@ -106,52 +124,30 @@ public class DBClient extends Thread{
 		this.serverSocketAddress = new InetSocketAddress(serverHost, serverPort);
 	}
 
-	public void stopRunning(){
-		running = false;
-		//	interrupt();
+	public void stop(){
+		server.stop();
+		client.stop();
+		loadGeneratorThread.stopRunning();
 	}
 
-
-	@Override
 	public void run() {
-		while(running){
-			//Get the head and tail address and connect to head
-			IDGenerator idGenerator = new IDGenerator();
-			headServer = client.connectClientToServer(serverSocketAddress);
-			
-			while( tailServer==null || headServer==null || !headServer.isConnected() ||  !tailServer.isConnected()){
-				try {
-					Thread.sleep(connRetry);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+		while( tailServer==null || headServer==null || !headServer.isConnected() ||  !tailServer.isConnected()){
+			try {
+				System.out.println("Client connectiong to " + serverSocketAddress);
+				headServer = client.connectClientToServer(serverSocketAddress);
+				
+				Thread.sleep(connRetry);
+
+			} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
-			
-			for(long i = 0;  running; i++){
-				Identifier id = Identifier.newBuilder()
-						.setClientId(conf.getDbClientId())
-						.setMessageId(idGenerator.getNextId()).build();
-
-				LogEntry entry = LogEntry.newBuilder()
-						.setEntryId(id)
-						.setKey("Key"+i)
-						.setClientSocketAddress(conf.getBufferServerSocketAddress().toString())
-						.setOperation("Opt.add(pfffff)").build();
-
-				System.out.println("Sending " + entry.getEntryId().getMessageId() );
-
-				headServer.write(entry).awaitUninterruptibly();
-
-				try {
-					Thread.sleep(10);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-
-			}
-
 		}
+		System.out.println("Channel " + headServer);
+		loadGeneratorThread = new LoadGenerator(headServer, conf, latencyEvaluator, 20, 200);
+		loadGeneratorThread.start();
+		loadGeneratorThread.startLoad();
+
+
 	}
 }
+

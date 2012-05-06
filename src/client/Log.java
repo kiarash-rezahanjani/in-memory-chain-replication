@@ -43,6 +43,7 @@ public final class Log {
       TAIL_NOTIFICATION(3, 4),
       ACK(4, 5),
       CONNECTION_TAIL_TO_DB_CLIENT(5, 6),
+      LAST_ACK_SENT_TO_FAILED_CLIENT(6, 7),
       ;
       
       
@@ -56,6 +57,7 @@ public final class Log {
           case 4: return TAIL_NOTIFICATION;
           case 5: return ACK;
           case 6: return CONNECTION_TAIL_TO_DB_CLIENT;
+          case 7: return LAST_ACK_SENT_TO_FAILED_CLIENT;
           default: return null;
         }
       }
@@ -86,7 +88,7 @@ public final class Log {
       }
       
       private static final Type[] VALUES = {
-        CONNECTION_DB_CLIENT, CONNECTION_BUFFER_SERVER, ENTRY_PERSISTED, TAIL_NOTIFICATION, ACK, CONNECTION_TAIL_TO_DB_CLIENT, 
+        CONNECTION_DB_CLIENT, CONNECTION_BUFFER_SERVER, ENTRY_PERSISTED, TAIL_NOTIFICATION, ACK, CONNECTION_TAIL_TO_DB_CLIENT, LAST_ACK_SENT_TO_FAILED_CLIENT, 
       };
       public static Type valueOf(
           com.google.protobuf.Descriptors.EnumValueDescriptor desc) {
@@ -916,17 +918,18 @@ public final class Log {
       descriptor;
   static {
     java.lang.String[] descriptorData = {
-      "\n\017proto/Log.proto\022\rserialization\"\372\002\n\010Log" +
+      "\n\017proto/Log.proto\022\rserialization\"\236\003\n\010Log" +
       "Entry\0223\n\007entryId\030\001 \001(\0132\".serialization.L" +
       "ogEntry.Identifier\022\013\n\003key\030\002 \001(\t\022\021\n\topera" +
       "tion\030\003 \001(\t\022\033\n\023clientSocketAddress\030\004 \001(\t\022" +
       "1\n\013messageType\030\005 \001(\0162\034.serialization.Log" +
       "Entry.Type\0321\n\nIdentifier\022\020\n\010clientId\030\001 \002" +
-      "(\t\022\021\n\tmessageId\030\002 \001(\003\"\225\001\n\004Type\022\030\n\024CONNEC" +
+      "(\t\022\021\n\tmessageId\030\002 \001(\003\"\271\001\n\004Type\022\030\n\024CONNEC" +
       "TION_DB_CLIENT\020\001\022\034\n\030CONNECTION_BUFFER_SE" +
       "RVER\020\002\022\023\n\017ENTRY_PERSISTED\020\003\022\025\n\021TAIL_NOTI" +
       "FICATION\020\004\022\007\n\003ACK\020\005\022 \n\034CONNECTION_TAIL_T",
-      "O_DB_CLIENT\020\006B\r\n\006clientB\003Log"
+      "O_DB_CLIENT\020\006\022\"\n\036LAST_ACK_SENT_TO_FAILED" +
+      "_CLIENT\020\007B\r\n\006clientB\003Log"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
       new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {

@@ -22,6 +22,27 @@ public abstract class AbstractPersister extends Thread{
 		this.ensemble=ensemble;
 	}
 
+	public void stopRunning(){
+		running = false;
+		interrupt();
+	}
+
+	public void run() {
+		// TODO Auto-generated method stub
+		int i = 0;
+		while(running){
+				LogEntry entry = ensemble.getBuffer().nextToPersist();
+				boolean persisted = persistEntry(entry);
+				if(persisted)
+					try {
+						removePersistedEntryBcast(getPersistedMessage(entry));
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+		}
+	}
+
 	/**
 	 * Persist the entry and return the persisted notification.
 	 * ATTENTION: This method should have an async equivaleny.
@@ -30,6 +51,11 @@ public abstract class AbstractPersister extends Thread{
 	 */
 	public abstract boolean persistEntry(LogEntry entry);
 
+	/**
+	 * creates the persisted message which inocates which entry has been persisted
+	 * @param entry
+	 * @return
+	 */
 	public LogEntry getPersistedMessage(LogEntry entry){
 		return LogEntry.newBuilder().setMessageType(Type.ENTRY_PERSISTED)
 				.setEntryId(entry.getEntryId()).build();
@@ -40,7 +66,7 @@ public abstract class AbstractPersister extends Thread{
 	 * @param persistedMessage
 	 * @throws Exception
 	 */
-	public void removePersistedEntry(final LogEntry persistedMessage) throws Exception{
+	/*	public void removePersistedEntry(final LogEntry persistedMessage) throws Exception{
 		ensemble.getBuffer().remove(persistedMessage.getEntryId());
 		ChannelFuture channelFuture = null;
 		if(ensemble.getPredecessorChannel().isConnected())
@@ -58,7 +84,7 @@ public abstract class AbstractPersister extends Thread{
 				}
 			});
 	}
-	
+	 */
 	/**
 	 * Remove entry from buffer and send persisted message to the predecessor.
 	 * @param persistedMessage
@@ -66,14 +92,9 @@ public abstract class AbstractPersister extends Thread{
 	 */
 	public void removePersistedEntryBcast(final LogEntry persistedMessage) throws Exception{
 		ensemble.getBuffer().remove(persistedMessage.getEntryId());
-		
-		if(ensemble.getPredecessorChannel().isConnected())
-			broadcastPersistedMessage( persistedMessage,ensemble.getpeersChannelHandle());
-		else
-			throw new Exception("Predecessor channel is not connected!" +  ensemble.getPredecessorChannel());
-
-
+		ensemble.broadcastChannel(persistedMessage);
 	}
+
 	private void broadcastPersistedMessage(final LogEntry persistedMessage, final List<Channel> peersChannel) {
 		for(Channel peer : peersChannel){
 			peer.write(persistedMessage).addListener(new ChannelFutureListener() {
@@ -86,34 +107,6 @@ public abstract class AbstractPersister extends Thread{
 			});
 		}
 	}
-	
-	public void stopRunning(){
-		running = false;
-		interrupt();
-	}
 
-	public void run() {
-		// TODO Auto-generated method stub
-		int i = 0;
-		while(running){
-			try {
-				LogEntry entry = ensemble.getBuffer().nextToPersist();
-				boolean persisted = persistEntry(entry);
-				Thread.sleep(2);//persist
-				if(persisted)
-					try {
-						removePersistedEntryBcast(getPersistedMessage(entry));
-						System.out.println("Message " + entry.getEntryId() + " Persisted by" + ensemble.getConfiguration().getBufferServerPort() + " Total No: "+  ++i);
-					} catch (Exception e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
 
-			}catch(InterruptedException e)
-			{
-				throw new RuntimeException("Persister was interrupted.");
-			}
-
-		}
-	}
 }

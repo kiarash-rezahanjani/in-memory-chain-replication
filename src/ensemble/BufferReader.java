@@ -2,6 +2,7 @@ package ensemble;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
@@ -23,30 +24,31 @@ public class BufferReader  extends Thread{
 	Ensemble ensemble;
 	boolean running = true;
 	//HashSet<Identifier> failedDelivery = new HashSet<Identifier>(1000);
-	HashMap<String, Long> lastMessageDelivered = new HashMap<String,Long>();// it can be done in a better way without consuming cpu for hashing
+//	HashMap<String, Long> lastMessageDelivered = new HashMap<String,Long>();// it can be done in a better way without consuming cpu for hashing
 	//boolean ringComplete = false;
 	public BufferReader(Ensemble ensemble){
 		this.ensemble = ensemble;
 	}
 
-	public void sendToSuccessor(final LogEntry entry) throws Exception{
+	public void sendToSuccessor(final BufferedLogEntry blEntry) throws Exception{
 		ChannelFuture future;
-		Channel channel = ensemble.getTailDbClients().get(entry.getEntryId().getClientId());
+		Channel channel = ensemble.getTailDbClients().get(blEntry.entry.getEntryId().getClientId());
 		if(channel!=null){//if I am the tail send ack 
 			if(channel.isConnected())
-				future = channel.write(ackMessage(entry.getEntryId()));
+				future = channel.write(ackMessage(blEntry.entry.getEntryId()));
 			else
 				throw new Exception("Tail=>DBClient channel is not connected. Channel:" + channel);
+		
 		}else{//otherwise send to next the log buffer server
 			channel = ensemble.getSuccessorChannel();
 			if(channel==null)
 				throw new Exception("Successor channel is null.");
 			if(channel.isConnected())
-				future = channel.write(entry);
+				future = channel.write(blEntry.entry);
 			else
 				throw new Exception("BufferServer=>BufferServer channel is not connected. Channel:" + channel);
 		}
-		future.addListener(new MessageFutureListener(entry.getEntryId())) ;
+		future.addListener(new MessageFutureListener(blEntry.entry.getEntryId(), blEntry.bufferIndex)) ;
 	}
 
 	LogEntry ackMessage(Identifier id){
@@ -54,6 +56,7 @@ public class BufferReader  extends Thread{
 				.setClientSocketAddress(ensemble.getConfiguration().getBufferServerSocketAddress().toString())
 				.setMessageType(Type.ACK).build();
 	}
+	
 
 	public void stopRunning(){
 		running = false;
@@ -62,16 +65,18 @@ public class BufferReader  extends Thread{
 
 	public class MessageFutureListener implements ChannelFutureListener{
 		Identifier id;
-		public MessageFutureListener(Identifier id){
+		int bufferIndex;
+		public MessageFutureListener(Identifier id, int bufferIndex){
 			this.id = id;
-			ensemble.buffer.readComplete(id);
+			this.bufferIndex = bufferIndex;
+		//	ensemble.buffer.readComplete(id);
 		}
 		@Override
 		public void operationComplete(ChannelFuture future) throws Exception {
 			// TODO Auto-generated method stub
 			if(future.isSuccess()){
-				ensemble.buffer.readComplete(id);
-				lastMessageDelivered.put(id.getClientId(), id.getMessageId());
+				ensemble.buffer.readComplete(bufferIndex);
+				ensemble.getLastDeliveredMessageHandle().put(id.getClientId(), id.getMessageId());
 			}
 			else{
 			//	failedDelivery.add(id);
@@ -85,10 +90,14 @@ public class BufferReader  extends Thread{
 		// TODO Auto-generated method stub
 		while(running){
 			try {
+			
 				sendToSuccessor(ensemble.getBuffer().nextToRead());
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
+				System.out.println("Last Acked" + ensemble.lastDeliveredMessage);
+				System.out.println("Last Acked" + ensemble.lastPersistedMessage);
+				System.exit(-1);
 			}
 		//	System.out.println("Failed to deliver to next destination" + failedDelivery.size());
 		}

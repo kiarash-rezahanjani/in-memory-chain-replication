@@ -24,7 +24,7 @@ import client.Log.LogEntry.Identifier;
  *
  */
 
-public class NaiveCircularBuffer implements CircularBuffer{
+public class NaiveCircularBuffer {
 
 	final private LogEntry[] buffer;
 	private int readPosition = 0;
@@ -230,7 +230,7 @@ public class NaiveCircularBuffer implements CircularBuffer{
 		return false;
 	}
 
-	@Override
+//	@Override
 	public LogEntry nextToPersist() {
 		// TODO Auto-generated method stub
 
@@ -265,7 +265,7 @@ public class NaiveCircularBuffer implements CircularBuffer{
 		//System.out.println("BUFFER "+str + "  " + Thread.currentThread().getName() + meta);
 	}
 
-	@Override
+//	@Override
 	public void readComplete(Identifier id) {
 		// TODO Auto-generated method stub
 		
