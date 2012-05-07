@@ -1,4 +1,4 @@
-package JustTesting;
+package ensemble;
 
 
 import java.nio.BufferOverflowException;
@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
@@ -14,7 +15,12 @@ import java.util.Set;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import client.Log;
+import utility.TextFile;
+
+import ensemble.Buffer;
+import client.Log.LogEntry;
+import client.Log.LogEntry.Identifier;
+
 
 
 
@@ -27,7 +33,7 @@ import client.Log;
  *
  */
 
-public class ConcurrentCircularBuffer {
+public class ConcurrentBuffer implements Buffer{
 
 	final private LogEntry[] buffer;
 	private int readPosition = 0;
@@ -45,11 +51,13 @@ public class ConcurrentCircularBuffer {
 	Object readLock = new Object();
 	Object persistLock = new Object();
 	boolean persisterWaitForReader = false;
+	boolean readerWaitForWritter = false;
+	boolean emptyWait = true;
 
 	//	private Semaphore addSem ;
 	//	private Semaphore removeSem ;
 
-	public ConcurrentCircularBuffer(int capacity, Set<String> persistClientIdSet) {
+	public ConcurrentBuffer(int capacity, Set<String> persistClientIdSet) {
 		this.capacity = capacity;
 		this.persistClient = persistClientIdSet;
 		//		addSem = new Semaphore(capacity);
@@ -67,14 +75,17 @@ public class ConcurrentCircularBuffer {
 	}
 	// add and remove client and create neccessary data struct
 	public void add(LogEntry entry) {
-
 		while(size.get()>=capacity ||  bufferElementPersist.get(writePosition)){
 			synchronized(full){
 				try {
 					if(size.get()>=capacity){
-						print1("full: waiting thread:" + "size.get()>=capacity " + (size.get()>=capacity) + " bufferElementPersist.get(writePosition) "+(bufferElementPersist.get(writePosition)) );
+						//				print1("full: waiting thread:" + "size.get()>=capacity " + (size.get()>=capacity) + " bufferElementPersist.get(writePosition) "+(bufferElementPersist.get(writePosition)) );
+						String meta = "\n[RP: "+readPosition + " WP: " + writePosition + " PQSz: " + 
+								persistIndexQueue.size() + " Persist Pos: " + persistPosition + " c/s: " + size.get() + "/"+ capacity + " \n" ; 
+						System.out.println("Buffer is Full" +  buffer.length + " " + meta);
 						full.wait();
-						print1("full: release:" + "size.get()>=capacity " + (size.get()>=capacity) + " bufferElementPersist.get(writePosition) "+(bufferElementPersist.get(writePosition)) );
+						
+						//				print1("full: release:" + "size.get()>=capacity " + (size.get()>=capacity) + " bufferElementPersist.get(writePosition) "+(bufferElementPersist.get(writePosition)) );
 					}
 
 				} catch (InterruptedException e) {
@@ -86,90 +97,69 @@ public class ConcurrentCircularBuffer {
 
 		String clientId = entry.getEntryId().getClientId();
 		Long msgId = Long.valueOf(entry.getEntryId().getMessageId());
-	//	Integer writePosition = Integer.valueOf(writePosition);
+		Integer intWritePosition = Integer.valueOf(writePosition);
 
+		if(!logIndex.containsKey(clientId)){//move to add a client method later
+			HashMap<Long, Integer> messages = new HashMap<Long, Integer>();
+			messages.put(msgId, intWritePosition);
+			logIndex.put(clientId, messages);
+		}else
 
-		if (size.get()<capacity) {//it should never happens remove the condition later
-			if(!logIndex.containsKey(clientId)){//move to add a client method later
-				HashMap<Long,Integer> messages = new HashMap<Long, Integer>();
-				messages.put(msgId, Integer.valueOf(writePosition));
-				logIndex.put(clientId, messages);
-			}else
-				logIndex.get(clientId).put(msgId, Integer.valueOf(writePosition));
+			logIndex.get(clientId).put(msgId, intWritePosition);
 
-			bufferElementRead.set(writePosition, true);
-			bufferElementPersist.set(writePosition, true);
-			print(String.valueOf(persistClient.contains(clientId)) + " this.list "+persistClient.contains(clientId) + " arg: " + clientId);
-			if(persistClient.contains(clientId)){
-				persistIndexQueue.offer(Integer.valueOf(writePosition));
-				//if(persistIndexQueue.size()==1)
-				print("NOTIFY PERSIST");
-					synchronized(persistLock){
-						persistLock.notifyAll();
-					}
-				
-			}
-			buffer[writePosition++] = entry;
-			writePosition = writePosition % capacity;
-			size.incrementAndGet();
-		} else {
-
-			//we can say wait till its available
-			throw new BufferOverflowException();
+		if(persistClient.contains(clientId)){
+			persistIndexQueue.offer(Integer.valueOf(writePosition));
+			if(persisterWaitForReader)
+				synchronized(persistLock){
+					persistLock.notifyAll();
+				}
 		}
+		buffer[writePosition] = entry;
+		bufferElementRead.set(writePosition, true);
+		bufferElementPersist.set(writePosition, true);
 
-		///|| readPosition+2 == writePosition || persistIndexQueue.size()==1
-		//if(size.get()==1)
-		{
-			synchronized(empty){
-				empty.notifyAll();
-			}
+		writePosition = ++writePosition % capacity;
+		size.incrementAndGet();
+
+		/*		synchronized(empty){
+			empty.notifyAll();
 		}
-
-		//if(writePosition-readPosition==1 )
-		{
+		 */
+		if(readerWaitForWritter)
 			synchronized(readLock){
 				readLock.notifyAll();
 			}
-		}
-		print("Added " +  Thread.currentThread());
+		//	print("Buffered " +  entry.getEntryId().getMessageId());
 	}
 
 
 
-	public void readComplete(Identifier id){
-
-		Integer position = logIndex.get(id.getClientId()).get(Long.valueOf(id.getMessageId()));
-		if(position==null)
-			try {
-				throw new Exception("Position null.");
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
-		bufferElementRead.set(position.intValue(), false);
-		if(persisterWaitForReader == true)
+	public void readComplete(int index){
+		bufferElementRead.set(index, false);
+		if(persisterWaitForReader)
 			synchronized (persistLock) {
 				print("Notify Persister by thread:" +  Thread.currentThread());
 				persistLock.notifyAll();
 			}
+		//		print("Read Complete " +  id.getMessageId());
 	}
 
-	public LogEntry nextToRead() {
+	public BufferedLogEntry nextToRead() {
 		while(bufferElementRead.get(readPosition)==false){
 			try {
 				synchronized (readLock) {
-					print("ReadLock: waiting thread:" +  Thread.currentThread());
+					//			print1("ReadLock: waiting thread:" +  Thread.currentThread());
+					readerWaitForWritter = true;
 					readLock.wait();
-					print("Not ReadLock: waiting thread:" +  Thread.currentThread());
+					//			print1("Not ReadLock: waiting thread:" +  Thread.currentThread());
 				}
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
-
+		readerWaitForWritter = false;
+		BufferedLogEntry blEntry = null;
 		LogEntry t = null;
 		if (size.get()>0) {//should not happen we can remove later
 			if(bufferElementRead.get(readPosition)==false)//should not happen
@@ -181,7 +171,9 @@ public class ConcurrentCircularBuffer {
 				}
 
 			t = (LogEntry) buffer[readPosition];
-			//	bufferElementRead.set(readPosition, false);
+			blEntry = new BufferedLogEntry();
+			blEntry.entry = t;
+			blEntry.bufferIndex = readPosition;
 			readPosition = ++readPosition % capacity;//potential bug
 
 		} else {
@@ -193,17 +185,25 @@ public class ConcurrentCircularBuffer {
 			}
 		}
 		//bufferElementRead.set(readPosition, false);
-		print("Read " +  Thread.currentThread());
-		return t;
+		//	print("ReadNext From Buffer  " +  t.getEntryId().getMessageId());
+		return blEntry;
 	}
 
+
+
 	public void remove(Identifier id){	
+		//System.out.println("LogIndex: " + logIndex );
+		//System.out.println("[RP: "+readPosition + " WP: " + writePosition + " PQSz: " + 
+		//		persistIndexQueue.size() + " Persist Pos: " + persistPosition + " c/s: " + size.get() + "/"+ capacity + " PersistClient "+ persistClient) ; 
+		//	System.out.println("Buffer: " + buffer );
+
+	//	print1("Removing start:" +  "PersistBits: " + bufferElementPersist.toString() + " | ReadBits: " + bufferElementRead.toString());
 		String clientId = id.getClientId(); 
 		long msgId = id.getMessageId();
 		Integer position = logIndex.get(clientId).get(Long.valueOf(msgId));
-		if(position==null)
+		if(position==null || buffer[position.intValue()]==null)
 			try {
-				throw new Exception("Position null. Wrong element to remove.");
+				throw new Exception("Position null. Wrong element to remove.ID:"+ id + " LogIndex:" + logIndex );
 			} catch (Exception e1) {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
@@ -222,21 +222,23 @@ public class ConcurrentCircularBuffer {
 				}
 			}
 		}
+		Object obj;
 
-		Object obj = logIndex.get(clientId).remove(Long.valueOf(msgId));
+		obj = logIndex.get(clientId).remove(Long.valueOf(msgId));
 		if(obj!=null){
 			size.decrementAndGet();
 			bufferElementPersist.set(position.intValue(), false);
 			persistPosition = position.intValue();
+			buffer[position.intValue()]=null;
+			print("Removed From Buffer  " + id.getMessageId());
 			synchronized (full) {
 				full.notifyAll();}
 		}
-		print1("Persisted & Removed " + id.getMessageId()+ " " +  Thread.currentThread());
 	}
-/**
- * 
- * @return
- */
+	/**
+	 * 
+	 * @return
+	 */
 	public LogEntry nextToPersist() {
 		// TODO Auto-generated method stub
 		//if element is not read can not be persisted
@@ -244,15 +246,15 @@ public class ConcurrentCircularBuffer {
 			synchronized(persistLock){
 				try {
 					if(persistIndexQueue.size()>0)
-					print1("persistlock: waiting thread:" +  "persistIndexQueue.size()<=0 " + String.valueOf(persistIndexQueue.size()<=0) + " bufferElementRead.get(persistIndexQueue.peek()) " + String.valueOf(bufferElementRead.get(persistIndexQueue.peek())) 
-						+ " !bufferElementPersist.get(persistIndexQueue.peek()) " + String.valueOf(!bufferElementPersist.get(persistIndexQueue.peek()))  );
-					
+						print1("persistlock: waiting thread:" +  "persistIndexQueue.size()<=0 " + String.valueOf(persistIndexQueue.size()<=0) + " bufferElementRead.get(persistIndexQueue.peek()) " + String.valueOf(bufferElementRead.get(persistIndexQueue.peek())) 
+								+ " !bufferElementPersist.get(persistIndexQueue.peek()) " + String.valueOf(!bufferElementPersist.get(persistIndexQueue.peek()))  );
+
 					persisterWaitForReader = true;
 					persistLock.wait();
 					if(persistIndexQueue.size()>0)
-					print1("persistlock: release thread:" +  "persistIndexQueue.size()<=0 " + String.valueOf(persistIndexQueue.size()<=0) + " bufferElementRead.get(persistIndexQueue.peek()) " + String.valueOf(bufferElementRead.get(persistIndexQueue.peek())) 
-							+ " !bufferElementPersist.get(persistIndexQueue.peek()) " + String.valueOf(!bufferElementPersist.get(persistIndexQueue.peek()))  );
-							
+						print1("persistlock: release thread:" +  "persistIndexQueue.size()<=0 " + String.valueOf(persistIndexQueue.size()<=0) + " bufferElementRead.get(persistIndexQueue.peek()) " + String.valueOf(bufferElementRead.get(persistIndexQueue.peek())) 
+								+ " !bufferElementPersist.get(persistIndexQueue.peek()) " + String.valueOf(!bufferElementPersist.get(persistIndexQueue.peek()))  );
+
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -260,8 +262,11 @@ public class ConcurrentCircularBuffer {
 			}
 		}	
 		persisterWaitForReader = false;
-		print("Persist Only Read " +  Thread.currentThread());
-		return buffer[persistIndexQueue.poll().intValue()];
+		int index = persistIndexQueue.poll().intValue();
+		LogEntry entry = buffer[index];
+		//bufferElementPersist.set(index, false);
+		print("PersistNext From Buffer  " +  entry.getEntryId().getMessageId());
+		return entry;
 	}
 
 	public String toString() {
@@ -274,32 +279,18 @@ public class ConcurrentCircularBuffer {
 	void print(String str){
 		String meta = "\n[RP: "+readPosition + " WP: " + writePosition + " PS: " + 
 				persistIndexQueue.size() + " c/s: " + size.get() + "/"+ capacity + " \n"; 
-	//	System.out.println("BUFFER "+str + "  " + Thread.currentThread().getName() + meta);
+		//		System.out.println("BUFFER "+str + "  " + Thread.currentThread().getName() + meta);
 	}
+
+	TextFile file = new TextFile("BitSets");
 	void print1(String str){
 		String meta = "\n[RP: "+readPosition + " WP: " + writePosition + " PQSz: " + 
 				persistIndexQueue.size() + " Persist Pos: " + persistPosition + " c/s: " + size.get() + "/"+ capacity + " \n" ; 
-		System.out.println("BUFFER "+str + "  " + Thread.currentThread().getName() + meta);
+		//	file.print(str + meta);
+		//	System.out.println("BUFFER "+str + "  "  + meta);
+		//System.out.println("Buffer Element Read: " + bufferElementRead);
+		//System.out.println("Buffer Element Read: " + bufferElementPersist);
 	}
-	/*
-	public static void main(String[] args) {
-		Set<String> tail = new HashSet<String>();
-		tail.add("cli");
-		ConcurrentCircularBuffer  buffer = new ConcurrentCircularBuffer(200,tail);
-
-		Read read = new Read(buffer,200);
-		Persist persist = new Persist(buffer,100);
-		Add add = new Add(buffer, 50);
-		read.start();
-		persist.start();
-		add.start();
-		
-		
-		
-		//	int removeIndx s0;
-
-	}
-*/
 
 }
 

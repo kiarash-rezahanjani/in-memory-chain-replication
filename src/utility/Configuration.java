@@ -3,6 +3,7 @@ package utility;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.Inet4Address;
 import java.net.InetSocketAddress;
 import java.util.Properties;
 
@@ -42,7 +43,7 @@ public class Configuration {
 	}
 
 	/**
-	 * Load properties from the given properties file. File should be place in configuration folder
+	 * Load properties from the given properties file. File should be place in configuration folder.
 	 */
 	public Configuration(String applicationPropertiesFile)
 	{	
@@ -54,10 +55,11 @@ public class Configuration {
 		FileInputStream input;
 		try {
 
+			//default properties
 			input = new FileInputStream(defaultPropertiesPath);
 			defaultProperty.load(input);
 			input.close();
-
+			
 			zkNameSpace = defaultProperty.getProperty("zkNameSpace");
 			zkServersRoot = defaultProperty.getProperty("zkServersRoot");
 			zkClientRoot = defaultProperty.getProperty("zkClientRoot");
@@ -66,7 +68,7 @@ public class Configuration {
 			zkConnectionString = defaultProperty.getProperty("zkConnectionString");
 			zkSessionTimeOut = Integer.parseInt( defaultProperty.getProperty("zkSessionTimeOut") );
 
-			// create application properties with default
+			//application properties
 			applicationProperties = new Properties(defaultProperty);
 			input = new FileInputStream(applicationPropertiesPath);
 			applicationProperties.load(input);
@@ -75,26 +77,20 @@ public class Configuration {
 			dbClientId = applicationProperties.getProperty("DB_CLIENT_ID");
 			protocolPort = Integer.parseInt( applicationProperties.getProperty("protocol_port") );
 			bufferServerPort = Integer.parseInt( applicationProperties.getProperty("buffer_server_port") );
-			//bufferClientPort = Integer.parseInt( applicationProperties.getProperty("buffer_client_port") );
 			ensembleBufferSize = Integer.parseInt( applicationProperties.getProperty("ensemble_buffer_size"));
-
-
 
 			System.out.println("protocolPort"+protocolPort);
 			System.out.println("bufferServerPort"+bufferServerPort);
 			//System.out.println("bufferClientPort"+bufferClientPort);
 			System.out.println("ensembleBufferSize"+ensembleBufferSize);
 
-			protocolSocketAddress = new InetSocketAddress("localhost",protocolPort);
-			bufferServerSocketAddress = new InetSocketAddress("localhost",bufferServerPort);
-			//bufferClientSocketAddress = new InetSocketAddress("localhost",bufferClientPort);
+			protocolSocketAddress = new InetSocketAddress(Inet4Address.getLocalHost(),  protocolPort);
+			bufferServerSocketAddress = new InetSocketAddress(Inet4Address.getLocalHost(), bufferServerPort);
 
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			System.exit(-1);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			System.exit(-1);
 		}
@@ -153,37 +149,15 @@ public class Configuration {
 	{
 		return bufferServerSocketAddress;
 	}
-/*
-	public InetSocketAddress getBufferClientSocketAddress()
-	{
-		return bufferClientSocketAddress;
-	}
-*/
+
 	public int getBufferServerPort()
 	{
 		return bufferServerPort; 
 	}
-/*
-	public int getBufferClientPort()
-	{
-		return bufferClientPort; 
-	}
-*/
+
 	public int getProtocolPort()
 	{
 		return protocolPort; 
 	}
-	/*	
-	public static void main(String[] args)
-	{
-		System.out.println( System.getProperty("user.dir") );
-		Configuration conf = new Configuration();
 
-		System.out.println("server address:" + conf.getBufferServerSocketAddress().toString());
-		System.out.println("protocol address:" + conf.getProtocolSocketAddress().toString());
-		System.out.println("protocol address:" + conf.getZkConnectionString() + " " + conf.getZkClientRoot() + " " + conf.getZkEnsemblesRoot() + " " + conf.getZkNameSpace()
-				+ " " + conf.getZkServersGlobalViewRoot() + " " + conf.getZkServersRoot() + " " + conf.getZkSessionTimeOut());
-
-	}
-	 */ 
 }

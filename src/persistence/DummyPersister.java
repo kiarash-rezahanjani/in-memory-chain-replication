@@ -9,7 +9,7 @@ import java.io.PrintStream;
 import client.Log.LogEntry;
 import client.Log.LogEntry.Identifier;
 import client.Log.LogEntry.Type;
-import ensemble.CircularBuffer;
+import ensemble.Buffer;
 import ensemble.Ensemble;
 
 public class DummyPersister extends AbstractPersister{

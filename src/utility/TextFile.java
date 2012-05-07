@@ -13,7 +13,7 @@ public class TextFile {
 
 	public TextFile(String file){
 		try {
-			out = new FileOutputStream(file);
+			out = new FileOutputStream(file, true);
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

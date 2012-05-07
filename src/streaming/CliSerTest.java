@@ -14,7 +14,7 @@ import client.Log.LogEntry;
 import client.Log.LogEntry.Identifier;
 import ensemble.ChainManager;
 import ensemble.ChainManagerThread;
-import ensemble.CircularBuffer;
+import ensemble.Buffer;
 import ensemble.ClientServerCallback;
 import ensemble.Ensemble;
 import ensemble.NaiveCircularBuffer;

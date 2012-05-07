@@ -8,9 +8,10 @@ import client.Log.LogEntry.Identifier;;
 public class LatencyEvaluator{
 	HashMap<Identifier,ElapsedTime> elapsedTime = new HashMap<Identifier,ElapsedTime>(); 
 	TextFile file = new TextFile("evaluation_results");
+	long start , end;
 
 	public LatencyEvaluator(){
-
+		start = System.nanoTime();
 	}
 
 	public void sent(Identifier id){
@@ -22,6 +23,7 @@ public class LatencyEvaluator{
 	}
 
 	public void report(){
+		end = System.nanoTime();
 		Iterator it =  elapsedTime.entrySet().iterator();
 		long average = 0;
 		int success = 0;
@@ -33,7 +35,7 @@ public class LatencyEvaluator{
 				average += time.getElapsedTime();
 			}
 		}
-		String report = "Average Latency " + average/success + " success/Total " + success + "/" + elapsedTime.size();
+		String report = "Average Latency " + average/success + " success/Total " + success + "/" + elapsedTime.size() + " Throughput " +  (success/(end-start))*1000000000;
 	//	System.out.println(report);
 		file.print(report);
 	} 

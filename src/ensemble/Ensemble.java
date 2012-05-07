@@ -21,7 +21,7 @@ import client.Log.LogEntry.Type;
 import utility.Configuration;
 
 public class Ensemble {
-	final CircularBuffer buffer;
+	final Buffer buffer;
 	List<InetSocketAddress> sortedChainSocketAddress;
 	Channel successorChannel;//to send logs
 	Channel predecessorChannel;//to send remove message
@@ -59,7 +59,7 @@ public class Ensemble {
 		if(sortedChainSocketAddress.size()<2)
 			throw new Exception("obj.chain Ensemble size < 2 ");
 		//	buffer = new NaiveCircularBuffer(conf.getEnsembleBufferSize(),tailDbClients.keySet());
-		buffer = new ConcurrentCircularBuffer(conf.getEnsembleBufferSize(),tailDbClients.keySet());
+		buffer = new ConcurrentBuffer(conf.getEnsembleBufferSize(),tailDbClients.keySet());
 		persister = new DummyPersister(this);
 		bufferReader = new BufferReader(this);
 		persister.start();
@@ -81,19 +81,22 @@ public class Ensemble {
 					Identifier id = Identifier.newBuilder().setClientId(clientId).setMessageId(lastDeliveredMessage.get(clientId).longValue()).build();
 					broadcastChannel(LogEntry.newBuilder().setMessageType(Type.LAST_ACK_SENT_TO_FAILED_CLIENT)
 							.setEntryId(id).build());
-					channel.close();
-			//		tailDbClients.remove(clientId);
+					entry.getValue().close();
+					tailDbClients.remove(clientId);
+					return;
 				}				
 			}	
 		}
 		
 		if(headDbClients.values().contains(channel)){
-			Iterator it = tailDbClients.entrySet().iterator();
+			Iterator it = headDbClients.entrySet().iterator();
 			String clientId = null;
 			while(it.hasNext()){
 				Map.Entry<String, Channel> entry =(Map.Entry<String, Channel>) it.next();
 				if(channel.equals(entry.getValue())){
 					entry.getValue().close();
+					headDbClients.remove(clientId);
+					return;
 				}				
 			}	
 		}
@@ -160,7 +163,7 @@ public class Ensemble {
 	public void setPredecessor(Channel predecessor) {
 		this.predecessorChannel = predecessor;
 	}
-	public CircularBuffer getBuffer() {
+	public Buffer getBuffer() {
 		return buffer;
 	}
 

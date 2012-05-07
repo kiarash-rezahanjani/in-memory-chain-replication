@@ -21,9 +21,9 @@ public class ReplicationServer {
 		}
 		
 		List<InetSocketAddress> addresses = new ArrayList<InetSocketAddress>();
-		addresses.add(new InetSocketAddress("localhost", 2111));
-		addresses.add(new InetSocketAddress("localhost", 2112));
-		addresses.add(new InetSocketAddress("localhost", 2113));
+		addresses.add(new InetSocketAddress("gsbl90152", 2111));
+		addresses.add(new InetSocketAddress("gsbl90155", 2112));
+		addresses.add(new InetSocketAddress("gsbl90159", 2113));
 		ChainManager cm=null;
 		try {
 			cm = new ChainManager(new Configuration(args[0]));

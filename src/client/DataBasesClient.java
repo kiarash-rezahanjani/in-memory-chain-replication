@@ -20,7 +20,7 @@ public class DataBasesClient {
 		
 		DBClient dbcliThread =null;
 		try {
-			dbcliThread = new DBClient( new Configuration(args[0]) , "localhost", 2111);
+			dbcliThread = new DBClient( new Configuration(args[0]) , "gsbl90152", 2111);
 			dbcliThread.run();
 
 		} catch (Exception e) {

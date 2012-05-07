@@ -20,7 +20,6 @@ import client.Log.LogEntry.Type;
  *
  */
 public class BufferReader  extends Thread{
-
 	Ensemble ensemble;
 	boolean running = true;
 	//HashSet<Identifier> failedDelivery = new HashSet<Identifier>(1000);
@@ -57,10 +56,9 @@ public class BufferReader  extends Thread{
 				.setMessageType(Type.ACK).build();
 	}
 	
-
 	public void stopRunning(){
 		running = false;
-		interrupt();
+		//interrupt();
 	}
 
 	public class MessageFutureListener implements ChannelFutureListener{

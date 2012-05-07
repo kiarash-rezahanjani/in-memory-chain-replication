@@ -3,6 +3,7 @@ package ensemble;
 import utility.Configuration;
 import utility.NetworkUtil;
 
+import java.net.Inet4Address;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,6 +36,7 @@ public class ChainManager implements ClientServerCallback{
 		this.conf=conf;
 		server = new BufferServer(conf, this);
 		client = new BufferClient(conf, this);
+	
 	}
 
 	public boolean newEnsemble(List<InetSocketAddress> sortedChainSocketAddress) throws Exception{

@@ -5,9 +5,9 @@ package JustTesting;
 public class Persist extends Thread{
 
 	boolean running = true;
-	ConcurrentCircularBuffer buffer;
+	HashedBuffer buffer;
 	int time ;
-	public Persist(ConcurrentCircularBuffer buffer, int time ){
+	public Persist(HashedBuffer buffer, int time ){
 		this.buffer = buffer;
 		this.time = time;
 	}
@@ -18,11 +18,10 @@ public class Persist extends Thread{
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
-
 		while(running){
 			try {
 				LogEntry entry = buffer.nextToPersist();
-				Thread.sleep(10);
+				Thread.sleep(time);
 				System.out.println("PERSISTED LL "+ entry.getEntryId().getMessageId());
 				buffer.remove(entry.getEntryId());
 			} catch (InterruptedException e) {

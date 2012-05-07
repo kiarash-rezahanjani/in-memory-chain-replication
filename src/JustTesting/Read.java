@@ -3,9 +3,9 @@ package JustTesting;
 
 public class Read extends Thread{
 	boolean running = true;
-	ConcurrentCircularBuffer buffer;
+	HashedBuffer buffer;
 	int time;
-	public Read(ConcurrentCircularBuffer buffer, int time){
+	public Read(HashedBuffer buffer, int time){
 		this.buffer = buffer;
 		this.time = time;
 	}

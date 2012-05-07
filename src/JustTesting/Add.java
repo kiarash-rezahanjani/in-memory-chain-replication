@@ -2,9 +2,9 @@ package JustTesting;
 public class Add extends Thread{
 
 	boolean running = true;
-	ConcurrentCircularBuffer buffer;
+	HashedBuffer buffer;
 	int time ;
-	public Add(ConcurrentCircularBuffer buffer, int time){
+	public Add(HashedBuffer buffer, int time){
 		this.buffer = buffer;
 		this.time = time;
 	}
