@@ -33,7 +33,7 @@ import client.Log.LogEntry.Identifier;
  *
  */
 
-public class ConcurrentBuffer implements Buffer{
+public class ConcurrentBuffer /*implements Buffer*/{
 
 	final private LogEntry[] buffer;
 	private int readPosition = 0;

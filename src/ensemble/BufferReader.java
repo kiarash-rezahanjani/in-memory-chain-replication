@@ -29,12 +29,12 @@ public class BufferReader  extends Thread{
 		this.ensemble = ensemble;
 	}
 
-	public void sendToSuccessor(final BufferedLogEntry blEntry) throws Exception{
+	public void sendToSuccessor(final LogEntry entry) throws Exception{
 		ChannelFuture future;
-		Channel channel = ensemble.getTailDbClients().get(blEntry.entry.getEntryId().getClientId());
+		Channel channel = ensemble.getTailDbClients().get(entry.getEntryId().getClientId());
 		if(channel!=null){//if I am the tail send ack 
 			if(channel.isConnected())
-				future = channel.write(ackMessage(blEntry.entry.getEntryId()));
+				future = channel.write(ackMessage(entry.getEntryId()));
 			else
 				throw new Exception("Tail=>DBClient channel is not connected. Channel:" + channel);
 		
@@ -43,11 +43,11 @@ public class BufferReader  extends Thread{
 			if(channel==null)
 				throw new Exception("Successor channel is null.");
 			if(channel.isConnected())
-				future = channel.write(blEntry.entry);
+				future = channel.write(entry);
 			else
 				throw new Exception("BufferServer=>BufferServer channel is not connected. Channel:" + channel);
 		}
-		future.addListener(new MessageFutureListener(blEntry.entry.getEntryId(), blEntry.bufferIndex)) ;
+		future.addListener(new MessageFutureListener(entry.getEntryId())) ;
 	}
 
 	LogEntry ackMessage(Identifier id){
@@ -63,17 +63,16 @@ public class BufferReader  extends Thread{
 
 	public class MessageFutureListener implements ChannelFutureListener{
 		Identifier id;
-		int bufferIndex;
-		public MessageFutureListener(Identifier id, int bufferIndex){
+		//int bufferIndex;
+		public MessageFutureListener(Identifier id){
 			this.id = id;
-			this.bufferIndex = bufferIndex;
 		//	ensemble.buffer.readComplete(id);
 		}
 		@Override
 		public void operationComplete(ChannelFuture future) throws Exception {
 			// TODO Auto-generated method stub
 			if(future.isSuccess()){
-				ensemble.buffer.readComplete(bufferIndex);
+				ensemble.buffer.readComplete(id);
 				ensemble.getLastDeliveredMessageHandle().put(id.getClientId(), id.getMessageId());
 			}
 			else{

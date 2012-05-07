@@ -11,10 +11,12 @@ public class LatencyEvaluator{
 	long start , end;
 
 	public LatencyEvaluator(){
-		start = System.nanoTime();
+		
 	}
 
 	public void sent(Identifier id){
+		if(elapsedTime.size()==0)
+			start = System.nanoTime();
 		elapsedTime.put(id, new ElapsedTime());
 	}
 
@@ -35,7 +37,7 @@ public class LatencyEvaluator{
 				average += time.getElapsedTime();
 			}
 		}
-		String report = "Average Latency " + average/success + " success/Total " + success + "/" + elapsedTime.size() + " Throughput " +  (success/(end-start))*1000000000;
+		String report = "Average Latency " + average/success + " success/Total " + success + "/" + elapsedTime.size() + " Throughput " +  (success/(double)(end-start))*1000000000;
 	//	System.out.println(report);
 		file.print(report);
 	} 

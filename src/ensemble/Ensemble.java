@@ -59,7 +59,8 @@ public class Ensemble {
 		if(sortedChainSocketAddress.size()<2)
 			throw new Exception("obj.chain Ensemble size < 2 ");
 		//	buffer = new NaiveCircularBuffer(conf.getEnsembleBufferSize(),tailDbClients.keySet());
-		buffer = new ConcurrentBuffer(conf.getEnsembleBufferSize(),tailDbClients.keySet());
+		//buffer = new ConcurrentBuffer(conf.getEnsembleBufferSize(),tailDbClients.keySet());
+		buffer = new HashedBuffer(conf.getEnsembleBufferSize(),tailDbClients.keySet());
 		persister = new DummyPersister(this);
 		bufferReader = new BufferReader(this);
 		persister.start();

@@ -53,6 +53,9 @@ public class DBClient {
 					latencyEvaluator.received(msg.getEntryId());
 				//	System.out.println("Rec Ack of Message " + msg.getEntryId().getMessageId() 	+ " From: " + msg.getClientSocketAddress());
 					//receivedMessages.add(msg.getEntryId());
+					if(msg.getEntryId().getMessageId()%1000 ==999)
+						System.out.println("Acked: " + msg.getEntryId().getMessageId());
+					
 					if(msg.getEntryId().getMessageId()==10000){
 						loadGeneratorThread.stopLoad();
 						latencyEvaluator.report();
@@ -143,7 +146,7 @@ public class DBClient {
 			}
 		}
 		System.out.println("Channel " + headServer);
-		loadGeneratorThread = new LoadGenerator(headServer, conf, latencyEvaluator, 0, 200);
+		loadGeneratorThread = new LoadGenerator(headServer, conf, latencyEvaluator, 1, 200);
 		loadGeneratorThread.start();
 		loadGeneratorThread.startLoad();
 

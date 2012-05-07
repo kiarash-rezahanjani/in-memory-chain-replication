@@ -3,7 +3,7 @@ package ensemble;
 import client.Log.LogEntry;
 import client.Log.LogEntry.Identifier;
 
-public interface Buffer {
+public interface BufferOld {
 
 	public void add(Object object);
 	public void add(LogEntry entry);
@@ -13,13 +13,8 @@ public interface Buffer {
 	 * buffer server or should be Acknowledged to client.
 	 * @return
 	 */
-	public LogEntry nextToRead();
-	
-	/**
-	 * 
-	 * @param id
-	 */
-	public void readComplete(Identifier id);
+	public BufferedLogEntry nextToRead();
+	public void readComplete(int bufferIndex);
 	/**
 	 * Return the next element in the buffer that has to be persisted by this 
 	 * buffer server. This method does not remove the entry from the buffer

@@ -1,4 +1,4 @@
-package JustTesting;
+package ensemble;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -13,11 +13,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 
-//import client.Log.LogEntry;
-//import client.Log.LogEntry.Identifier;
+import client.Log.LogEntry;
+import client.Log.LogEntry.Identifier;
 
 
-public class HashedBuffer{
+public class HashedBuffer implements  Buffer{
 	Hashtable<Identifier, LogEntry> data ;
 	BlockingQueue<Identifier> readQueue ;
 	BlockingQueue<Identifier> persistQueue ;
@@ -38,7 +38,6 @@ public class HashedBuffer{
 		persistQueue = new LinkedBlockingQueue<Identifier>(capacity);
 		clientMessages = new Hashtable<String, HashSet<Identifier>>();
 	}
-
 
 	public void add(Object object) {
 		// TODO Auto-generated method stub
@@ -152,9 +151,9 @@ public class HashedBuffer{
 	}
 
 	public void report(String msg){
-		System.out.println(msg + "\n RQ " + readQueue.size() + " PQ " +  persistQueue.size() + " Data " +  data.size() + " failed client " + failedClientGarbageCollectionStatus + " \n messages "+ clientMessages.get("cli").toString());
+//		System.out.println(msg + "\n RQ " + readQueue.size() + " PQ " +  persistQueue.size() + " Data " +  data.size() + " failed client " + failedClientGarbageCollectionStatus + " \n messages "+ clientMessages.get("cli").toString());
 	}
-
+/*
 	public static void main(String[] args) {
 		Set<String> tail = new HashSet<String>();
 		tail.add("cli");
@@ -162,12 +161,12 @@ public class HashedBuffer{
 
 		Read read = new Read(buffer,100);
 		Persist persist = new Persist(buffer,200);
-		Add add = new Add(buffer, 2);
+		Add add = new Add(buffer, 20);
 		read.start();
 		persist.start();
 		add.start();
 
 		//	int removeIndx s0;
 	}
-
+*/
 }
