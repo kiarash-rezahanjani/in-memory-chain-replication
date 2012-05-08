@@ -36,9 +36,10 @@ public class DBClient {
 	//List<Identifier> receivedMessages = new ArrayList<Identifier>();
 	Channel headServer;
 	Channel tailServer;
-	int connRetry  = 1000;//millisecond
+	int connRetry  = 10;//millisecond
 	LoadGenerator loadGeneratorThread ;
 	LatencyEvaluator latencyEvaluator ;
+	Object sendLock = new Object();
 	//boolean running=true;
 	//volatile boolean stop = false; 
 
@@ -50,8 +51,9 @@ public class DBClient {
 			if(msg.hasMessageType()){//check if this is a channel identification message
 				//replace with a switch
 				if(msg.getMessageType()==Type.ACK){
+					synchronized(sendLock){sendLock.notifyAll();}
 					latencyEvaluator.received(msg.getEntryId());
-				//	System.out.println("Rec Ack of Message " + msg.getEntryId().getMessageId() 	+ " From: " + msg.getClientSocketAddress());
+				//	System.out.println("Ack of " + msg.getEntryId().getMessageId() 	+ " From: " + msg.getClientSocketAddress());
 					//receivedMessages.add(msg.getEntryId());
 					if(msg.getEntryId().getMessageId()%1000 ==999)
 						System.out.println("Acked: " + msg.getEntryId().getMessageId());
@@ -61,7 +63,7 @@ public class DBClient {
 						latencyEvaluator.report();
 						headServer.close();
 						tailServer.close();
-						System.exit(-1);
+					//	System.exit(-1);
 					}
 					return;
 				}
@@ -83,7 +85,7 @@ public class DBClient {
 		@Override
 		public void exceptionCaught(ExceptionEvent e) {
 			// TODO Auto-generated method stub
-			System.out.println("Client accepted connection: " + e.getChannel());
+			System.out.println("Client received Exception: " + e.getChannel());
 			closeOnFlush(e.getChannel(), e.getCause().toString());
 		}
 
@@ -106,6 +108,7 @@ public class DBClient {
 				ch.write(ChannelBuffers.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
 			}else
 			{
+				System.out.println("\n\nClosing the head and tail channels " +  ch + " by "  );
 				headServer.close();
 				tailServer.close();
 			}
@@ -145,8 +148,8 @@ public class DBClient {
 				e.printStackTrace();
 			}
 		}
-		System.out.println("Channel " + headServer);
-		loadGeneratorThread = new LoadGenerator(headServer, conf, latencyEvaluator, 1, 200);
+		System.out.println("Stream to Channel " + headServer);
+		loadGeneratorThread = new LoadGenerator(headServer, conf, latencyEvaluator, 0, 200, sendLock);
 		loadGeneratorThread.start();
 		loadGeneratorThread.startLoad();
 

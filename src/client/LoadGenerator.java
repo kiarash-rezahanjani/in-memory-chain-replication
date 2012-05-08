@@ -22,8 +22,10 @@ public class LoadGenerator extends Thread{
 	Configuration conf;
 	IDGenerator idGenerator = new IDGenerator();
 	LatencyEvaluator latencyEvaluator;
+	Object sendLock;
 	
-	public LoadGenerator(Channel headServer, Configuration conf, LatencyEvaluator latencyEvaluator, int timeInterval, int size){
+	public LoadGenerator(Channel headServer, Configuration conf, LatencyEvaluator latencyEvaluator, int timeInterval, int size, Object sendLock){
+		this.sendLock = sendLock;
 		this.timeInterval = timeInterval; 
 		this.size = size;
 		this.conf = conf;
@@ -34,8 +36,8 @@ public class LoadGenerator extends Thread{
 		}
 	}
 	
-	public LoadGenerator(Channel headServer, Configuration conf, LatencyEvaluator latencyEvaluator ){
-		this( headServer, conf , latencyEvaluator, default_timeInterval, default_size);
+	public LoadGenerator(Channel headServer, Configuration conf, LatencyEvaluator latencyEvaluator, Object sendLock){
+		this( headServer, conf , latencyEvaluator, default_timeInterval, default_size, sendLock);
 	}
 	
 	public void startLoad(){
@@ -73,11 +75,18 @@ public class LoadGenerator extends Thread{
 			latencyEvaluator.sent(id);//start elapsed time
 	//		System.out.println("Channel " + headServer + " entry " + entry);
 			headServer.write(entry).awaitUninterruptibly();
-			try {
+		//	System.out.println("Sent " + entry.getEntryId().getMessageId() );
+			synchronized(sendLock){try {
+				sendLock.wait();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}}
+	/*		try {
 				Thread.sleep(timeInterval);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-		}
+*/		}
 	}
 }

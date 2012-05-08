@@ -29,7 +29,7 @@ public class DummyPersister extends AbstractPersister{
 
 	@Override
 	public boolean persistEntry(LogEntry entry) {
-		persist.append(entry.toString());
+		persist.append(entry.getEntryId().toString());
 		return true;
 	}
 

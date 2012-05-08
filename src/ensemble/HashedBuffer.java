@@ -61,8 +61,8 @@ public class HashedBuffer implements  Buffer{
 			clientMessages.put(entry.getEntryId().getClientId(), new HashSet<Identifier>(capacity));
 
 		clientMessages.get(entry.getEntryId().getClientId()).add(entry.getEntryId());
-		readQueue.offer(entry.getEntryId());
 		data.put(entry.getEntryId(), entry);
+		readQueue.offer(entry.getEntryId());
 		report("added to buffer " + entry.getEntryId().getMessageId());
 	}
 
@@ -121,7 +121,7 @@ public class HashedBuffer implements  Buffer{
 	}
 
 	/**
-	 * Remove all the entries with messageId greater then the given messageID belong the given client.
+	 * Remove all the entries with messageId greater than the given messageID belong to the given client.
 	 * Once this runnable is done it sets the status of the given client to true.
 	 * @author root
 	 *
@@ -151,7 +151,7 @@ public class HashedBuffer implements  Buffer{
 	}
 
 	public void report(String msg){
-//		System.out.println(msg + "\n RQ " + readQueue.size() + " PQ " +  persistQueue.size() + " Data " +  data.size() + " failed client " + failedClientGarbageCollectionStatus + " \n messages "+ clientMessages.get("cli").toString());
+	//	System.out.println(msg + "\n RQ " + readQueue.size() + " PQ " +  persistQueue.size() + " Data " +  data.size() );
 	}
 /*
 	public static void main(String[] args) {

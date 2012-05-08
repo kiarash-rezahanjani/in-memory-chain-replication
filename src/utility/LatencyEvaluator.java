@@ -38,7 +38,7 @@ public class LatencyEvaluator{
 			}
 		}
 		String report = "Average Latency " + average/success + " success/Total " + success + "/" + elapsedTime.size() + " Throughput " +  (success/(double)(end-start))*1000000000;
-	//	System.out.println(report);
+		System.out.println(report);
 		file.print(report);
 	} 
 
