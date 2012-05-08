@@ -57,7 +57,7 @@ public class LoadGenerator extends Thread{
 		while(running){
 			while(!load && running){
 				try {
-					sleep(1000);
+					sleep(10);
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -73,9 +73,7 @@ public class LoadGenerator extends Thread{
 					.setClientSocketAddress(conf.getBufferServerSocketAddress().toString())
 					.setOperation(payload).build();
 			latencyEvaluator.sent(id);//start elapsed time
-	//		System.out.println("Channel " + headServer + " entry " + entry);
 			headServer.write(entry).awaitUninterruptibly();
-		//	System.out.println("Sent " + entry.getEntryId().getMessageId() );
 			synchronized(sendLock){try {
 				sendLock.wait();
 			} catch (InterruptedException e) {

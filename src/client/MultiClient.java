@@ -17,16 +17,16 @@ public class MultiClient {
 		if(args.length<1){
 			System.exit(-1);
 		}
+		DBClient[] dbcliThread = new DBClient[args.length];
 		for(int i=0; i<args.length ; i++){
-			DBClient dbcliThread =null;
+			
 			try {
-				dbcliThread = new DBClient( new Configuration(args[i]) , "gsbl90152", 2111);
-				dbcliThread.run();
-
+				dbcliThread[i] = new DBClient( new Configuration(args[i]) , "gsbl90152", 2111);
+				dbcliThread[i].run();
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-				dbcliThread.stop();
+				dbcliThread[i].stop();
 				//	System.exit(-1);
 			}finally{
 

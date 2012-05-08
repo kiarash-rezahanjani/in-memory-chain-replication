@@ -40,19 +40,19 @@ public class ChainManager implements ClientServerCallback{
 	}
 
 	public boolean newEnsemble(List<InetSocketAddress> sortedChainSocketAddress) throws Exception{
+		//Zookeeper sets watch on the servers
 		ensemble = new Ensemble(conf,sortedChainSocketAddress);
 		Channel succChannel=null;
 		do{//loop is for testing, it should not happen to be null
-			Thread.sleep(1000);
+			Thread.sleep(500);
 			succChannel = client.connectServerToServer(ensemble.getSuccessorSocketAddress());
 		}while(succChannel==null);
 
 		Channel predChannel=null;
 		do{//loop is for testing, it should not happen to be null
-			Thread.sleep(1000);
+			Thread.sleep(500);
 			predChannel = client.connectServerToServer(ensemble.getPredessessorSocketAddress());
 		}while(predChannel==null);
-
 
 		if(succChannel==null || predChannel==null)
 			throw new Exception("Predecessor or successor channel is null.");

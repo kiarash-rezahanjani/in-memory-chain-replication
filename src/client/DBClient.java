@@ -36,7 +36,7 @@ public class DBClient {
 	//List<Identifier> receivedMessages = new ArrayList<Identifier>();
 	Channel headServer;
 	Channel tailServer;
-	int connRetry  = 10;//millisecond
+	int connRetry  = 5;//millisecond
 	LoadGenerator loadGeneratorThread ;
 	LatencyEvaluator latencyEvaluator ;
 	Object sendLock = new Object();
@@ -53,17 +53,15 @@ public class DBClient {
 				if(msg.getMessageType()==Type.ACK){
 					synchronized(sendLock){sendLock.notifyAll();}
 					latencyEvaluator.received(msg.getEntryId());
-				//	System.out.println("Ack of " + msg.getEntryId().getMessageId() 	+ " From: " + msg.getClientSocketAddress());
+					//	System.out.println("Ack of " + msg.getEntryId().getMessageId() 	+ " From: " + msg.getClientSocketAddress());
 					//receivedMessages.add(msg.getEntryId());
 					if(msg.getEntryId().getMessageId()%1000 ==999)
 						System.out.println("Acked: " + msg.getEntryId().getMessageId());
-					
+
 					if(msg.getEntryId().getMessageId()==10000){
 						loadGeneratorThread.stopLoad();
 						latencyEvaluator.report();
-						headServer.close();
-						tailServer.close();
-					//	System.exit(-1);
+						close();
 					}
 					return;
 				}
@@ -115,7 +113,14 @@ public class DBClient {
 		}
 	};
 
-
+	public void close(){
+		headServer.close();
+		tailServer.close();
+		loadGeneratorThread.stopRunning();
+		server.stop();
+		client.stop();
+	}
+	
 	public DBClient(Configuration conf){
 		this.conf = conf;
 		server = new BufferServer(conf, callback);
@@ -141,18 +146,17 @@ public class DBClient {
 			try {
 				System.out.println("Client connectiong to " + serverSocketAddress);
 				headServer = client.connectClientToServer(serverSocketAddress);
-				
 				Thread.sleep(connRetry);
 
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 		}
-		System.out.println("Stream to Channel " + headServer);
+		System.out.println("Head Channel " + headServer);
+		System.out.println("Tail Channel " + headServer);
 		loadGeneratorThread = new LoadGenerator(headServer, conf, latencyEvaluator, 0, 200, sendLock);
 		loadGeneratorThread.start();
 		loadGeneratorThread.startLoad();
-
 
 	}
 }
