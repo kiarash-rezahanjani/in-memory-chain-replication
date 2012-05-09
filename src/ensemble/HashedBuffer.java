@@ -151,7 +151,7 @@ public class HashedBuffer implements  Buffer{
 	}
 
 	public void report(String msg){
-	//	System.out.println(msg + "\n RQ " + readQueue.size() + " PQ " +  persistQueue.size() + " Data " +  data.size() );
+		System.out.println(msg + "\n RQ " + readQueue.size() + " PQ " +  persistQueue.size() + " Data " +  data.size() );
 	}
 /*
 	public static void main(String[] args) {

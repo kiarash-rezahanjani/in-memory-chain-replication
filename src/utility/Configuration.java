@@ -60,12 +60,12 @@ public class Configuration {
 			defaultProperty.load(input);
 			input.close();
 			
-			zkNameSpace = defaultProperty.getProperty("zkNameSpace");
-			zkServersRoot = defaultProperty.getProperty("zkServersRoot");
-			zkClientRoot = defaultProperty.getProperty("zkClientRoot");
-			zkEnsemblesRoot = defaultProperty.getProperty("zkEnsemblesRoot");
-			zkServersGlobalViewRoot = defaultProperty.getProperty("zkServersGlobalViewRoot");
-			zkConnectionString = defaultProperty.getProperty("zkConnectionString");
+			zkNameSpace = defaultProperty.getProperty("zkNameSpace").trim();
+			zkServersRoot = defaultProperty.getProperty("zkServersRoot").trim();
+			zkClientRoot = defaultProperty.getProperty("zkClientRoot").trim();
+			zkEnsemblesRoot = defaultProperty.getProperty("zkEnsemblesRoot").trim();
+			zkServersGlobalViewRoot = defaultProperty.getProperty("zkServersGlobalViewRoot").trim();
+			zkConnectionString = defaultProperty.getProperty("zkConnectionString").trim();
 			zkSessionTimeOut = Integer.parseInt( defaultProperty.getProperty("zkSessionTimeOut") );
 
 			//application properties

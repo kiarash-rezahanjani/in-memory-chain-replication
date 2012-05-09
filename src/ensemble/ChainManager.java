@@ -3,12 +3,22 @@ package ensemble;
 import utility.Configuration;
 import utility.NetworkUtil;
 
+import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.ZooDefs.Ids;
+import org.apache.zookeeper.data.Stat;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
@@ -31,14 +41,74 @@ public class ChainManager implements ClientServerCallback{
 	BufferServer server;
 	BufferClient client;
 	List<Channel> unknownChannels = new ArrayList<Channel>();
+	static ZooKeeper zk = null;
 
 	public ChainManager(Configuration conf) throws Exception{
 		this.conf=conf;
 		server = new BufferServer(conf, this);
 		client = new BufferClient(conf, this);
 	
+		//-------------zK-----------
+		if(zk==null){
+			try {
+				zk = new ZooKeeper(conf.getZkConnectionString(), conf.getZkSessionTimeOut(), new Watcher(){
+				@Override
+				public void process(WatchedEvent event) {
+					// TODO Auto-generated method stub
+				}});
+				createRoot(conf.getZkNameSpace());
+				createRoot(conf.getZkNameSpace()+conf.getZkServersRoot());
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (KeeperException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}	
+		}
+		
+		zk.create(conf.getZkNameSpace()+conf.getZkServersRoot()+"/"+getHostColonPort(conf.getBufferServerSocketAddress().toString()), new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+	
 	}
+	
+	//-------------zK------------------------------------------------------
+	void createRoot(String path) throws KeeperException, InterruptedException{
+		try {
+			Stat s = zk.exists(path, false);
+			if(s==null)
+				zk.create(path, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+		} catch (KeeperException.NodeExistsException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
+	}
+	
+	public String getHostColonPort(String socketAddress)
+	{
+		String host = "";
+		int port=0;
 
+		Pattern p = Pattern.compile("^\\s*(.*?):(\\d+)\\s*$");
+		Matcher m = p.matcher(socketAddress);
+
+		if (m.matches()) 
+		{
+			host = m.group(1);
+			
+			if(host.contains("/"))
+				host = host.substring( host.indexOf("/") + 1 );
+			
+			port = Integer.parseInt(m.group(2));
+
+			return host + ":" + port;
+		}else
+			return null;
+
+	}
+	//======================================================================
 	public boolean newEnsemble(List<InetSocketAddress> sortedChainSocketAddress) throws Exception{
 		//Zookeeper sets watch on the servers
 		ensemble = new Ensemble(conf,sortedChainSocketAddress);
@@ -69,6 +139,7 @@ public class ChainManager implements ClientServerCallback{
 		}
 		ensemble.getPeersChannelHandle().add(predChannel);
 		System.out.println("/n/nPEER CHANNEL" + ensemble.getPeersChannelHandle());
+		
 		//-------------------
 		return true;
 	}

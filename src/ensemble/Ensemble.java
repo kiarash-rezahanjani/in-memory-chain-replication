@@ -104,6 +104,11 @@ public class Ensemble {
 	}
 
 	public void clientFailed(Identifier lastAck){
+		//remove the head or tail
+		//send the last ack to the servers
+		//garbage collect
+		//persist
+		//remove client from all data structures
 /*		clientFailed.put(lastAck.getClientId(), lastAck);
 		
 		if(tailDbClients.containsKey(lastAck.getClientId()))

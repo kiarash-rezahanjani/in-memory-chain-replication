@@ -16,14 +16,14 @@ public class ReplicationServer {
 		//args=new String[1];
 		//args[0]="applicationProperties";
 		System.out.println("Config file: " + args[0] +  System.getProperty("user.dir"));
-		if(args.length<1){
+		if(args.length<4){
 			System.exit(-1);
 		}
 		
 		List<InetSocketAddress> addresses = new ArrayList<InetSocketAddress>();
-		addresses.add(new InetSocketAddress("gsbl90152", 2111));
-		addresses.add(new InetSocketAddress("gsbl90155", 2112));
-		addresses.add(new InetSocketAddress("gsbl90159", 2113));
+		addresses.add(new InetSocketAddress(args[1], 2111));
+		addresses.add(new InetSocketAddress(args[2], 2112));
+		addresses.add(new InetSocketAddress(args[3], 2113));
 		ChainManager cm=null;
 		try {
 			cm = new ChainManager(new Configuration(args[0]));
