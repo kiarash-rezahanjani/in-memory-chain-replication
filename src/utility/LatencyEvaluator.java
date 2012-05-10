@@ -73,4 +73,8 @@ public class LatencyEvaluator{
 
 	}
 
+	public void clean(){
+		elapsedTime.clear();
+		file.close();
+	}
 }

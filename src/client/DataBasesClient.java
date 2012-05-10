@@ -18,19 +18,20 @@ public class DataBasesClient {
 			System.exit(-1);
 		}
 		
-		DBClient dbcliThread =null;
+		DBClient dbcli =null;
 		try {
-			dbcliThread = new DBClient( new Configuration(args[0]));
-			dbcliThread.run();
+			dbcli = new DBClient( new Configuration(args[0]));
+			dbcli.run();
 
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			dbcliThread.stop();
+			dbcli.stop();
 		//	System.exit(-1);
 		}finally{
 			
 		}
+		System.out.println("DATABASEClient Terminated.");
 		
 	}
 

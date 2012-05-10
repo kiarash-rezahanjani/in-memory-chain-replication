@@ -1,6 +1,5 @@
 package client;
 
-
 import java.io.FileNotFoundException;
 
 import java.io.FileOutputStream;
@@ -9,10 +8,14 @@ import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -53,17 +56,19 @@ public class DBClient implements Watcher{
 	InetSocketAddress headSocketAddress;
 	//List<Identifier> sentMessages = new ArrayList<Identifier>();
 	//List<Identifier> receivedMessages = new ArrayList<Identifier>();
-	Channel headServer;
-	Channel tailServer;
+	Channel headServer ;
+	Channel tailServer ;
 	int connRetry  = 3;//millisecond
 	LoadGenerator loadGeneratorThread ;
 	LatencyEvaluator latencyEvaluator ;
-	Object sendLock = new Object();
+	final Semaphore semaphore = new Semaphore(1);
+	IDGenerator idGenerator = new IDGenerator();
 	//boolean running=true;
 	//volatile boolean stop = false; 
 	static ZooKeeper zk = null;
 	HashMap<InetSocketAddress, ServerRole> ensembleServers = new HashMap<InetSocketAddress, ServerRole>();
-	
+	Hashtable<Identifier, LogEntry> bufferedMessage = new Hashtable<Identifier, LogEntry>();
+
 	ClientServerCallback callback = new ClientServerCallback() {
 		@Override
 		public void serverReceivedMessage(MessageEvent e) {
@@ -72,9 +77,10 @@ public class DBClient implements Watcher{
 			if(msg.hasMessageType()){//check if this is a channel identification message
 				//replace with a switch
 				if(msg.getMessageType()==Type.ACK){
-					synchronized(sendLock){sendLock.notifyAll();}
+					bufferedMessage.remove(msg.getEntryId());
+					semaphore.release();
 					latencyEvaluator.received(msg.getEntryId());
-					//	System.out.println("Ack of " + msg.getEntryId().getMessageId() 	+ " From: " + msg.getClientSocketAddress());
+					System.out.println("Ack of " + msg.getEntryId().getMessageId()  + " loadG status: "+  loadGeneratorThread.isAlive() + loadGeneratorThread.isInterrupted());
 					//receivedMessages.add(msg.getEntryId());
 					if(msg.getEntryId().getMessageId()%1000 ==999)
 						System.out.println("Acked: " + msg.getEntryId().getMessageId());
@@ -147,14 +153,14 @@ public class DBClient implements Watcher{
 		server = new BufferServer(conf, callback);
 		client = new BufferClient(conf, callback);
 		latencyEvaluator = new LatencyEvaluator();
-		
+		loadGeneratorThread = new LoadGenerator( conf, 0, 200, semaphore, idGenerator, bufferedMessage);
 		if(zk==null){
 			try {
 				zk = new ZooKeeper(conf.getZkConnectionString(), conf.getZkSessionTimeOut(), this);
 				System.out.println("connectin to zk...");
 				createRoot(conf.getZkNameSpace());
 				createRoot(conf.getZkNameSpace()+conf.getZkClientRoot());
-				
+
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -183,9 +189,7 @@ public class DBClient implements Watcher{
 
 
 	public void run() {
-		
 		headSocketAddress = getWatchedEnsemble();
-		//
 		while( tailServer==null || headServer==null || !headServer.isConnected() ||  !tailServer.isConnected()){
 			try {
 				System.out.println("Client connectiong to " + headSocketAddress);
@@ -198,14 +202,42 @@ public class DBClient implements Watcher{
 			}
 		}
 		System.out.println("Head Channel " + headServer);
-		System.out.println("Tail Channel " + headServer);
-		loadGeneratorThread = new LoadGenerator(headServer, conf, latencyEvaluator, 0, 200, sendLock);
-		loadGeneratorThread.start();
+		System.out.println("Tail Channel " + tailServer);
+		flushBuffer();
+		loadGeneratorThread.setHeadServer(headServer);
+		loadGeneratorThread.setEvaluator(latencyEvaluator);
 		loadGeneratorThread.startLoad();
+		loadGeneratorThread.start();
 		
+	}
+	
+	void flushBuffer(){
+		System.out.println("ReSending size..." +  bufferedMessage.size() );
+		if(bufferedMessage.size()==0)
+			return;
+		
+		//sort the messages
+		Iterator it = bufferedMessage.keySet().iterator();
+		List<Identifier> ids = new ArrayList<Identifier>();
+		while(it.hasNext()){
+			Identifier id = (Identifier) it.next();
+			if(ids.size()==0){ids.add(id); continue;}
+			for(int i = 0; i< ids.size(); i++){
+				if(ids.get(i).getMessageId()>id.getMessageId())
+				{	ids.add(i, id); break;}
+				ids.add(id);
+			}
+		}
+		
+		
+		for(int i = 0; i< ids.size(); i++){
+			System.out.println("sending....." +  ids.get(i) );
+			headServer.write(bufferedMessage.get(ids.get(i))).awaitUninterruptibly();
+			System.out.println("sent....." +  ids.get(i) );
+		}
 
 	}
-//==================Zookeeper and Failure===============================
+	//==================Zookeeper and Failure===============================
 	public void ensembleFailure(ServerRole serverRole){
 		//pause the stream
 		//close the channels 
@@ -213,17 +245,22 @@ public class DBClient implements Watcher{
 		//find ensemble and set watch on the servers
 		//connect to the ensemble : jus find the head and connect
 		//resume the service
-		System.out.print("EnsembleFailure: Stopping... " );
+		System.out.println("EnsembleFailure: Stopping... " );
 		//stop();
-		
-		loadGeneratorThread.stopRunning();
+
+
+		//		loadGeneratorThread.stopRunning();
+
+		loadGeneratorThread.stopLoad();
 		headSocketAddress=null;
+		headServer.close();
+		tailServer.close();
 		headServer=null;
 		tailServer=null;
 		System.out.print("Running...." );
 		run();
 	}
-	
+
 	public Stat setFailureDetector(String nodeName)
 	{
 		Stat stat=null;
@@ -236,11 +273,11 @@ public class DBClient implements Watcher{
 		} 
 		return stat;
 	}
-	
+
 	enum ServerRole{
 		head, tail, middle
 	}
-	
+
 	void createRoot(String path) throws KeeperException, InterruptedException{
 		try {
 			Stat s = zk.exists(path, false);
@@ -251,7 +288,7 @@ public class DBClient implements Watcher{
 			e.printStackTrace();
 		} 
 	}
-	
+
 	@Override
 	public void process(WatchedEvent event) {
 		String path = event.getPath();
@@ -272,7 +309,7 @@ public class DBClient implements Watcher{
 				}
 			}
 		}
-		
+
 		if (event.getType() == Event.EventType.None) 
 		{
 			// We are are being told that the state of the
@@ -294,7 +331,7 @@ public class DBClient implements Watcher{
 
 
 	}
-	
+
 	int i = 0; //just for testing
 	InetSocketAddress getWatchedEnsemble(){
 		i++;
@@ -305,12 +342,12 @@ public class DBClient implements Watcher{
 		ensembleServers1.put(new InetSocketAddress( "gsbl90151", 2111), ServerRole.head);
 		ensembleServers1.put(new InetSocketAddress( "gsbl90152", 2112), ServerRole.middle);
 		ensembleServers1.put(new InetSocketAddress( "gsbl90153", 2113), ServerRole.tail);
-		
+
 		HashMap<InetSocketAddress, ServerRole> ensembleServers2 = new HashMap<InetSocketAddress, ServerRole>();
 		ensembleServers2.put(new InetSocketAddress( "gsbl90154", 2111), ServerRole.head);
 		ensembleServers2.put(new InetSocketAddress( "gsbl90155", 2112), ServerRole.middle);
 		ensembleServers2.put(new InetSocketAddress( "gsbl90156", 2113), ServerRole.tail);
-		
+
 		HashMap<InetSocketAddress, ServerRole> ensembleServers3 = new HashMap<InetSocketAddress, ServerRole>();
 		ensembleServers3.put(new InetSocketAddress( "gsbl90157", 2111), ServerRole.head);
 		ensembleServers3.put(new InetSocketAddress( "gsbl90158", 2112), ServerRole.middle);
@@ -321,7 +358,7 @@ public class DBClient implements Watcher{
 			ensembleServers = ensembleServers2 ;
 		//if(i%3==2) 
 		//	ensembleServers = ensembleServers3 ;
-		
+
 		//set watched on the servers and set the head server
 		Iterator it = ensembleServers.entrySet().iterator();
 		InetSocketAddress head = null;
@@ -339,11 +376,11 @@ public class DBClient implements Watcher{
 			if(entry.getValue()==ServerRole.head)
 				head = entry.getKey();
 		}
-		
+
 		return head;
 	}
 
-	
+
 	//copied from zookeeperclient class
 	public String getHostColonPort(String socketAddress)
 	{
@@ -356,10 +393,10 @@ public class DBClient implements Watcher{
 		if (m.matches()) 
 		{
 			host = m.group(1);
-			
+
 			if(host.contains("/"))
 				host = host.substring( host.indexOf("/") + 1 );
-			
+
 			port = Integer.parseInt(m.group(2));
 
 			return host + ":" + port;
@@ -368,6 +405,6 @@ public class DBClient implements Watcher{
 
 	}
 
-	
+
 }
 
