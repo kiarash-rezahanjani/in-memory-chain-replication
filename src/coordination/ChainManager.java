@@ -1,4 +1,4 @@
-package ensemble;
+package coordination;
 
 import utility.Configuration;
 import utility.NetworkUtil;
@@ -47,7 +47,7 @@ public class ChainManager implements ClientServerCallback{
 		this.conf=conf;
 		server = new BufferServer(conf, this);
 		client = new BufferClient(conf, this);
-	
+		
 		//-------------create zookeeper instance ....just tesing for now later should be replace by the Zk wrapper -----------
 		if(zk==null){
 			try {
@@ -69,9 +69,7 @@ public class ChainManager implements ClientServerCallback{
 				e.printStackTrace();
 			}	
 		}
-		
 		zk.create(conf.getZkNameSpace()+conf.getZkServersRoot()+"/"+getHostColonPort(conf.getBufferServerSocketAddress().toString()), new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
-	
 	}
 	
 	//---------------------------------------------------------ZooKeeper----------------------------------------------------------------------

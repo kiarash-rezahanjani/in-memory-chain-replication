@@ -1,0 +1,51 @@
+package serialization;
+
+option java_package = "coordination";
+option java_outer_classname = "Znode";
+
+message ServerData {
+  required string socketAddress = 1; //protocol socket address
+  required string bufferServerSocketAddress = 6;
+  optional string rack = 2;
+  optional Status stat = 3;
+  optional int32 capacityLeft = 4;
+  repeated string ensembleList = 5 ;
+  
+  enum Status 
+	{
+    	ACCEPT_ENSEMBLE_REQUEST = 0;
+    	REJECT_ENSEMBLE_REQUEST = 1;
+  	}
+
+ }
+ 
+message ServersGlobalView
+{
+	repeated ServerData sortedServers = 1;
+	repeated int32 leaderIndex = 2;
+}
+
+message EnsembleData {
+	optional string leader = 1;
+	repeated Member members = 2 ;
+	optional Status stat = 3;
+	optional int32 capacityLeft = 4;
+	
+	
+	enum Status 
+	{
+    	ACCPT_CONNECTION = 0;
+    	REJECT_CONNECTION = 1;
+    	REPAIRING = 2;
+  		//need new status FORMING = 3;
+  	}
+	
+	message Member
+	{
+		required string socketAddress = 1 ;
+		repeated string heads = 2 ;//clients connected to this member as a head
+		repeated string tails = 3 ;//Client connected to this member as a tail
+		
+	}
+	
+}
