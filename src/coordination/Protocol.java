@@ -1,49 +1,100 @@
 package coordination;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.Watcher.Event;
 import org.apache.zookeeper.data.Stat;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
-import coordination.InterProcessCoordinator;
-import coordination.InterProcessCoordinator.Status;
 import coordination.rpc.SenderReceiver;
 import utility.Configuration;
 import utility.NetworkUtil;
 import coordination.Znode.EnsembleData;
 import coordination.Znode.ServerData;
+import coordination.Znode.ServersGlobalView;
 
-public class Protocol implements Runnable, ReceivedMessageCallBack{
+public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for testing*/{
 	private SenderReceiver senderReceiver;
+	ExecutorService executor;
 	Configuration conf;
 	LeaderBookKeeper lbk = new LeaderBookKeeper();
 	FollowerBookkeeper fbk = new FollowerBookkeeper();
 	ZookeeperClient zkCli;
-	AtomicInteger status = new AtomicInteger();
+	AtomicInteger status = new AtomicInteger(ServerStatus.ALL_FUNCTIONAL_ACCEPT_REQUEST);
 	AtomicInteger checkPointedStatus = new AtomicInteger();
+	boolean running = true;
+	ServersGlobalView serversGlobalView;
+	boolean globalViewUpdater = false;
 
 	public Protocol(Configuration conf, ZookeeperClient zkCli ) {
 		this.conf = conf;
 		this.zkCli = zkCli;
 		senderReceiver = new SenderReceiver(conf, this);
+
+		try {
+			zkCli.createServerZnode(getInitialServerData());
+			executor = Executors.newFixedThreadPool(2);
+			startGlobalViewServer();
+		} catch (KeeperException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	ServerData getInitialServerData(){
+		ServerData.Builder data = ServerData.newBuilder();
+		data.setCapacityLeft(new Random().nextInt(101));
+		data.setSocketAddress( conf.getProtocolSocketAddress().toString());
+		data.setBufferServerSocketAddress(conf.getBufferServerSocketAddress().toString());
+		data.setStat(ServerData.Status.ACCEPT_ENSEMBLE_REQUEST);
+		return data.build();
 	}
 
 	//for testing only
 	boolean leader=false;
-	public Protocol(Configuration conf, ZookeeperClient zkCli , boolean leader) {
+	
+	public Protocol(Configuration conf, boolean leader){
 		this.conf = conf;
-		this.zkCli = zkCli;
-		this.leader=leader;
-		if(leader)
-			leaderStartsFormingEnsemble(4);
 		senderReceiver = new SenderReceiver(conf, this);
+		try{
+			this.zkCli = new ZookeeperClient(this, conf);
+			zkCli.createServerZnode(getInitialServerData());
+			executor = Executors.newFixedThreadPool(2);
+			startGlobalViewServer();
+		} catch (KeeperException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		this.leader = leader;
+		if(leader)
+			leaderStartsFormingEnsemble(3);
+
+	}
+
+	public void setStatus(int expect, int update){
+		this.status.compareAndSet(expect, update);
 	}
 
 	@Override 
@@ -105,11 +156,6 @@ public class Protocol implements Runnable, ReceivedMessageCallBack{
 			addStat();
 			//printStattransition();
 			break;		
-			//======================================================================================
-		case ServerStatus.FORMING_ENSEMBLE_NOT_LEADER_ROLL_BACK_ALL_OPERATIONS: 
-			if(message.getMessageType()==MessageType.OPERATION_FAILED)
-				;
-			break;
 		case ServerStatus.BROKEN_ENSEMBLE: 
 
 			break; 
@@ -193,14 +239,15 @@ public class Protocol implements Runnable, ReceivedMessageCallBack{
 				printStattransition();
 				String ensemblePath = leaderCreatesEnsembleZnode(lbk.getEnsembleMembers());
 				if(ensemblePath==null){
-					rollBack("leaderWaitForConnectedSignal ensmble node creation failed");
+					rollBack("leaderWaitForConnectedSignal ensmble node creation failed. Ensemble Path:"+ ensemblePath);
 					return;
 				}
 				for(InetSocketAddress sa : lbk.getConnectedList()){
 					startServiceSignal(sa, ensemblePath);
 					//System.out.println("sending start sig to:"+ sa.toString());
 				}
-				CALLBACK.leaderStartsService(ensemblePath);//maybe its not necessary
+				System.out.println("CALLBACK.leaderStartsService(ensemblePath);");
+				//CALLBACK.leaderStartsService(ensemblePath);//maybe its not necessary
 			}
 		}
 
@@ -249,7 +296,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack{
 			status.set(ServerStatus.FORMING_ENSEMBLE_NOT_LEADER_CONNECTING);
 			addStat();
 			List<InetSocketAddress> ensembleMembers = (List<InetSocketAddress> ) message.msgContent;	
-			boolean success = false;//callback //cdrHandle.followerConnectsEnsemble(ensembleMembers);
+			boolean success = true;//callback //cdrHandle.followerConnectsEnsemble(ensembleMembers);
 
 			if(success){	
 				fbk.setEnsembleMembers(ensembleMembers);	
@@ -274,7 +321,8 @@ public class Protocol implements Runnable, ReceivedMessageCallBack{
 				System.exit(-1);
 			}
 			fbk.setEnsemblePath(ensemblePath);
-			CALLBACK.followerStartsService(ensemblePath);// we dont need this as they are alrady ready for the service
+			System.out.println("CALLBACK.followerStartsService(ensemblePath); Path: " + ensemblePath);
+			//CALLBACK.followerStartsService(ensemblePath);// we dont need this as they are alrady ready for the service
 			status.set(ServerStatus.ALL_FUNCTIONAL_ACCEPT_REQUEST);// need to check if there is enough capacity left
 			//signal the coordinator
 			addStat();
@@ -294,7 +342,6 @@ public class Protocol implements Runnable, ReceivedMessageCallBack{
 
 	public void acceptJoinRequest(InetSocketAddress srcSocketAddress){
 		senderReceiver.send(srcSocketAddress, new ProtocolMessage(MessageType.ACCEPTED_JOIN_ENSEMBLE_REQUEST, " "));
-		//System.out.println("send accept join");
 	}
 
 	/**
@@ -396,8 +443,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack{
 	 * @param ensembleMembers
 	 * @return
 	 */
-	public String leaderCreatesEnsembleZnode(List<InetSocketAddress> ensembleMembers)
-	{
+	public String leaderCreatesEnsembleZnode(List<InetSocketAddress> ensembleMembers){
 		int SATURATION_POINT = 100;
 		EnsembleData.Builder ensembleData = EnsembleData.newBuilder();
 		String absolutePath=null;
@@ -416,9 +462,8 @@ public class Protocol implements Runnable, ReceivedMessageCallBack{
 			}
 			ensembleData.setCapacityLeft(minCapacity);
 			ensembleData.setStat(EnsembleData.Status.REJECT_CONNECTION);
-			ensembleData.setLeader(config.getProtocolSocketAddress().toString());
+			ensembleData.setLeader(conf.getProtocolSocketAddress().toString());
 			absolutePath = zkCli.createEnsembleZnode(ensembleData.build());
-
 		} catch (InvalidProtocolBufferException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -451,7 +496,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack{
 			}
 			list = new ArrayList<InetSocketAddress>();
 			for(ServerData s : sortedServers){
-				if(!config.getProtocolSocketAddress().toString().contains(s.getSocketAddress()))
+				if(!conf.getProtocolSocketAddress().toString().contains(s.getSocketAddress()))
 					list.add(NetworkUtil.parseInetSocketAddress( s.getSocketAddress()) );
 			}
 		} catch (Exception e) {
@@ -460,12 +505,78 @@ public class Protocol implements Runnable, ReceivedMessageCallBack{
 		} 
 		return list;
 	}
+
 	//------------------------------------------------------
-	
+	public void failureOf(String strSocketAddress){
+		if(isLeader()){
+			if(lbk.contains(NetworkUtil.parseInetSocketAddress(strSocketAddress)))
+				rollBack("one of the contacted server was failed during operation");
+		}else{
+			if(fbk.contains(NetworkUtil.parseInetSocketAddress(strSocketAddress)))
+				rollBack("leader of operation failed during operation.");
+		}
+	}
+	//------------------------------------------------------
+	public void stopRunning(){
+		running = false;
+	}
+
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
+		while(running){
 
+		}
+
+	}
+	//---------------------------------Global View Updater--------------------------
+	public void startGlobalViewServer(){
+		System.out.println("Starting Global View Server ..." + conf.getProtocolPort());
+		globalViewUpdater = zkCli.createGlobalViewZnode();
+		if(globalViewUpdater){
+			executor.submit(new GlobalViewServer(zkCli, 3000)); 
+			System.out.println("Started global viewer by " + conf.getProtocolPort());
+		}		
+	}
+	public void stopGlobalViewUpdater(){
+		executor.shutdownNow();
+		System.out.println("Shutdown global viewer by " + conf.getProtocolPort());
+	}
+
+	//for testing
+	@Override
+	public void process(WatchedEvent event) {
+		String path = event.getPath();
+		if (event.getType()== Event.EventType.NodeDeleted){
+			//if the failed node is a server
+			if(path.contains(conf.getZkServersRoot()))
+				failureOf(path.replace(conf.getZkEnsemblesRoot()+conf.getZkServersRoot()+"/", ""));//serverFailure(path);
+
+			//if the failed node is a client
+			if(path.contains(conf.getZkClientRoot()))
+				;//clientFailure(path);
+			//if the failed node is a client
+			if(path.contains(conf.getZkServersGlobalViewRoot()))
+				startGlobalViewServer();//clientFailure(path);
+		}
+
+		if (event.getType() == Event.EventType.None) {
+			// We are are being told that the state of the
+			// connection has changed
+			switch (event.getState()) {
+			case SyncConnected:
+				// In this particular example we don't need to do anything
+				// here - watches are automatically re-registered with 
+				// server and any watches triggered while the client was 
+				// disconnected will be delivered (in order of course)
+				break;
+			case Expired:
+				// It's all over
+				System.out.println("Zookeeper Connection is dead");
+				System.exit(-1);
+				break;
+			}
+		}
 	}
 
 }

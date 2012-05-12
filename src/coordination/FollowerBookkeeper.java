@@ -49,4 +49,14 @@ public class FollowerBookkeeper {
 	public void setEnsemblePath(String ensemblePath) {
 		this.ensemblePath = ensemblePath;
 	}
+
+	public boolean contains(InetSocketAddress socketAddress){
+		if(isEmpty())
+			return false;
+		if(socketAddress.equals(leader) )
+			return true;
+		else 
+			return false;
+	}
+
 }

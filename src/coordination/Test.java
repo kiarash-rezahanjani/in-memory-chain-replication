@@ -2,7 +2,7 @@ package coordination;
 
 import java.net.InetSocketAddress;
 
-import coordination.InterProcessCoordinator;
+//import coordination.InterProcessCoordinator;
 
 public class Test {
 
@@ -10,7 +10,7 @@ public class Test {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
+	/*	// TODO Auto-generated method stub
 		
 		InterProcessCoordinator co1 = new InterProcessCoordinator();
 		InterProcessCoordinator co2 = new InterProcessCoordinator();
@@ -24,7 +24,7 @@ public class Test {
 		}
 		//Protocol p2 = new Protocol(co2, 2222, true);
 		 
-		
+		*/
 		
 	}
 

@@ -119,8 +119,8 @@ public class LeaderBookKeeper {
 		else
 			return true;
 	}
-	
-	
+
+
 	public boolean waitForNextAcceptedMessage(){
 		int backup = requestedNodeList.size() - ensembleSize;
 		int failed = acceptedNodeList.size() - getAcceptedList().size();
@@ -157,7 +157,7 @@ public class LeaderBookKeeper {
 		}
 		return list;
 	}
-	
+
 	public List<InetSocketAddress> getNotAcceptedList(){//HashMap<InetSocketAddress, Boolean>
 		List<InetSocketAddress> list = new ArrayList<InetSocketAddress>();
 		Iterator it = acceptedNodeList.entrySet().iterator();
@@ -186,7 +186,7 @@ public class LeaderBookKeeper {
 		}
 		return list;
 	}
-	
+
 	public List<InetSocketAddress> getNotConnectedList(){//HashMap<InetSocketAddress, Boolean>
 		List<InetSocketAddress> list = new ArrayList<InetSocketAddress>();
 		Iterator it = connectedNodeList.entrySet().iterator();
@@ -200,9 +200,17 @@ public class LeaderBookKeeper {
 		return list;
 	}
 
+	public boolean contains(InetSocketAddress socketAddress){
+		if(isEmpty())
+			return false;
 
-	//-----------
+		if(acceptedNodeList.containsKey(socketAddress) || connectedNodeList.containsKey(socketAddress) || requestedNodeList.containsKey(socketAddress) || candidateSet.contains(socketAddress))
+			return true;
+		else
+			return false;
+	}
 
+	//------------------------------------------------------------
 	public void removeCandidate(InetSocketAddress sa){
 		candidateSet.remove(sa);
 	}

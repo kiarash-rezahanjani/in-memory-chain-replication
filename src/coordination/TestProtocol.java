@@ -2,19 +2,19 @@ package coordination;
 
 import java.net.InetSocketAddress;
 
-import coordination.InterProcessCoordinator;
+//import coordination.InterProcessCoordinator;
 
 public class TestProtocol {
 
 	
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
-		
+		/*
 		InterProcessCoordinator co2 = new InterProcessCoordinator("applicationProperties1");
 		InterProcessCoordinator co3 = new InterProcessCoordinator("applicationProperties2");
 		InterProcessCoordinator co4 = new InterProcessCoordinator("applicationProperties3");
 		InterProcessCoordinator co1 = new InterProcessCoordinator("applicationProperties");
-		/*
+	*/	/*
 		System.out.println("PROTOCOL 4.");
 		
 		Protocol p4 = new Protocol(co4, 4444, false);

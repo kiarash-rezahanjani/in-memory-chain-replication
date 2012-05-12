@@ -17,6 +17,7 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.Watcher.Event;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.data.Stat;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -27,13 +28,15 @@ import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 
+import coordination.ZookeeperClient;
+
 import client.Log.LogEntry;
 import client.Log.LogEntry.Type;
 
 import streaming.BufferClient;
 import streaming.BufferServer;
 
-public class ChainManager implements ClientServerCallback{
+public class ChainManager implements ClientServerCallback, Watcher{
 
 	Configuration conf;
 	List<InetSocketAddress> sortedChainSocketAddress;
@@ -41,74 +44,17 @@ public class ChainManager implements ClientServerCallback{
 	BufferServer server;
 	BufferClient client;
 	List<Channel> unknownChannels = new ArrayList<Channel>();// not necessary
-	static ZooKeeper zk = null;
+	static ZookeeperClient zkCli = null;
 
 	public ChainManager(Configuration conf) throws Exception{
 		this.conf=conf;
 		server = new BufferServer(conf, this);
 		client = new BufferClient(conf, this);
-	
-		//-------------create zookeeper instance ....just tesing for now later should be replace by the Zk wrapper -----------
-		if(zk==null){
-			try {
-				zk = new ZooKeeper(conf.getZkConnectionString(), conf.getZkSessionTimeOut(), new Watcher(){
-				@Override
-				public void process(WatchedEvent event) {
-					// TODO Auto-generated method stub
-				}});
-				createRoot(conf.getZkNameSpace());
-				createRoot(conf.getZkNameSpace()+conf.getZkServersRoot());
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (KeeperException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}	
-		}
+		zkCli = new ZookeeperClient(this, conf);
 		
-		zk.create(conf.getZkNameSpace()+conf.getZkServersRoot()+"/"+getHostColonPort(conf.getBufferServerSocketAddress().toString()), new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
-	
 	}
 	
 	//---------------------------------------------------------ZooKeeper----------------------------------------------------------------------
-	
-	void createRoot(String path) throws KeeperException, InterruptedException{
-		try {
-			Stat s = zk.exists(path, false);
-			if(s==null)
-				zk.create(path, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-		} catch (KeeperException.NodeExistsException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} 
-	}
-	
-	public String getHostColonPort(String socketAddress)
-	{
-		String host = "";
-		int port=0;
-
-		Pattern p = Pattern.compile("^\\s*(.*?):(\\d+)\\s*$");
-		Matcher m = p.matcher(socketAddress);
-
-		if (m.matches()) 
-		{
-			host = m.group(1);
-			
-			if(host.contains("/"))
-				host = host.substring( host.indexOf("/") + 1 );
-			
-			port = Integer.parseInt(m.group(2));
-
-			return host + ":" + port;
-		}else
-			return null;
-
-	}
 
 //============================================================================================================================
 	public boolean newEnsemble(List<InetSocketAddress> sortedChainSocketAddress) throws Exception{
@@ -254,6 +200,41 @@ public class ChainManager implements ClientServerCallback{
 		server.stop();
 		client.stop();
 
+	}
+	
+	//---------------------should be in chain manager
+	public void process(WatchedEvent event) {
+		String path = event.getPath();
+		if (event.getType()== Event.EventType.NodeDeleted){
+			//if the failed node is a server
+			if(path.contains(conf.getZkServersRoot()))
+				;//CALLBACKTO+ENSEMBLEAND+PROTOCOL.serverFailure(path);
+
+			//if the failed node is a client
+			if(path.contains(conf.getZkClientRoot()))
+				;//CALLBACKTOENSEMBLE.clientFailure(path);
+			
+			if(path.contains(conf.getZkServersGlobalViewRoot()))
+				;//CALLBACK+ENSEMBLE.globalFailure(path);
+		}
+
+		if (event.getType() == Event.EventType.None) {
+			// We are are being told that the state of the
+			// connection has changed
+			switch (event.getState()) {
+			case SyncConnected:
+				// In this particular example we don't need to do anything
+				// here - watches are automatically re-registered with 
+				// server and any watches triggered while the client was 
+				// disconnected will be delivered (in order of course)
+				break;
+			case Expired:
+				// It's all over
+				System.out.println("Zookeeper Connection is dead.");
+				System.exit(-1);
+				break;
+			}
+		}
 	}
 
 

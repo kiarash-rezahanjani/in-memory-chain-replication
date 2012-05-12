@@ -17,7 +17,7 @@ public class GlobalViewServer implements Runnable{
 	public GlobalViewServer(ZookeeperClient zkCli, int updateTimeInterval)
 	{
 		this.zkCli=zkCli;
-		this.timeInterval = timeInterval;
+		this.timeInterval = updateTimeInterval;
 	}
 
 	//sort all the servers based on the capacity left using insertion sort, those with max capacity come in the beginning
@@ -93,7 +93,8 @@ public class GlobalViewServer implements Runnable{
 	public void stopRunning(){
 		running = false;
 	}
-//	@Override
+
+	@Override
 	public void run() 
 	{
 		while(running)

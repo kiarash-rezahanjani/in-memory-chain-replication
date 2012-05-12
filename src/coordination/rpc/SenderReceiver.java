@@ -10,32 +10,14 @@ import coordination.ReceivedMessageCallBack;
 import utility.Configuration;
 
 //later work: catch exceptions and retry mechanism
-public class SenderReceiver implements Closeable
-{
+public class SenderReceiver implements Closeable{
 	private ReceivedMessageCallBack callback;
 	private UdpClient sender ;
 	private UdpServer receiver ;
 	private InetSocketAddress serverSocketAddress;
 	Configuration config ;
-/*	
-	public SenderReceiver(ReceivedMessageCallBack callback)
-	{
-		this.callback = callback;
-		sender = new UdpClient();
-		receiver = new UdpServer(callback);
-		try {
-			receiver.start();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			System.exit(-1);
-		}
-		
-		serverSocketAddress = receiver.getServerSocketAddress();
-	}
-*/
-	public SenderReceiver(Configuration config, ReceivedMessageCallBack callback)
-	{
+
+	public SenderReceiver(Configuration config, ReceivedMessageCallBack callback){
 		this.config =config;
 		this.callback = callback;
 		sender = new UdpClient();
@@ -47,17 +29,14 @@ public class SenderReceiver implements Closeable
 			e.printStackTrace();
 			System.exit(-1);
 		}
-		
-		serverSocketAddress = receiver.getServerSocketAddress();
+		serverSocketAddress = config.getProtocolSocketAddress();
 	}
 	
-	public InetSocketAddress getServerSocketAddress()
-	{
+	public InetSocketAddress getServerSocketAddress(){
 		return config.getProtocolSocketAddress();
 	}
 
-	public void send(InetSocketAddress destination, Object message)
-	{
+	public void send(InetSocketAddress destination, Object message){
 		//for(int i=0; i<2; i++)
 		try {
 			((ProtocolMessage)message).setSrcSocketAddress(serverSocketAddress);
@@ -70,18 +49,12 @@ public class SenderReceiver implements Closeable
 		}
 	}
 
-	public void broadcast(List<InetSocketAddress> destinations, Object message)
-	{
+	public void broadcast(List<InetSocketAddress> destinations, Object message){
 		for(InetSocketAddress destination:destinations)
 			send(destination, message);
-		
-		//sender.sendAsyncMessage(destination, message);
-		//		break;
-
 	}
 
-	public void send(String hostAddress, int port, Object message)
-	{
+	public void send(String hostAddress, int port, Object message){
 		send(new InetSocketAddress(hostAddress, port ), message);
 	}
 
