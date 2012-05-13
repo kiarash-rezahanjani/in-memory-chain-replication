@@ -9,6 +9,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import utility.NetworkUtil;
+
+import coordination.Znode.ServerData;
+
 
 /**
  * Maintain data required by leader for managing in-progress operation 
@@ -22,6 +26,9 @@ public class LeaderBookKeeper {
 	private HashSet<InetSocketAddress> candidateSet
 	= new HashSet<InetSocketAddress>();
 
+	public HashMap<InetSocketAddress, InetSocketAddress> protocolToBufferServer
+	= new HashMap<InetSocketAddress, InetSocketAddress>();
+	
 	private HashMap<InetSocketAddress, Boolean> requestedNodeList 
 	= new HashMap<InetSocketAddress, Boolean>();
 
@@ -55,18 +62,26 @@ public class LeaderBookKeeper {
 	/**
 	 * Gets list of all members of the ensemble including the leader
 	 * @return List of all members of the ensemble including the leader
-	 */
+	 *
+	 **/
+	public List<InetSocketAddress> getEnsembleMembersBufferServer() {
+		List<InetSocketAddress> list = new ArrayList<InetSocketAddress>();
+		for(InetSocketAddress address : ensembleMembers){
+			list.add(protocolToBufferServer.get(address));
+		}
+		return list;
+	}
+	
+
+
 	public List<InetSocketAddress> getEnsembleMembers() {
 		return ensembleMembers;
 	}
-
-	public LeaderBookKeeper(int ensembleSize)
-	{
+	public LeaderBookKeeper(int ensembleSize){
 		this.ensembleSize=ensembleSize;
 	}
 
-	public LeaderBookKeeper()
-	{
+	public LeaderBookKeeper(){
 		this.ensembleSize=3;
 	}
 
@@ -79,6 +94,17 @@ public class LeaderBookKeeper {
 		connectedNodeList.clear();
 	}
 
+	/**
+	 * map the protocol address to buffer server address and populate the candidate set with protocol addresses
+	 * @param serverDataList
+	 */
+	public void setCandidatesServerData(List<ServerData> serverDataList){
+		for(ServerData data : serverDataList){
+			protocolToBufferServer.put(NetworkUtil.parseInetSocketAddress(data.getSocketAddress()), NetworkUtil.parseInetSocketAddress(data.getBufferServerSocketAddress()));
+		}
+		candidateSet.addAll(protocolToBufferServer.keySet());
+	}
+	
 	public void setEnsembleSize(int size){
 		ensembleSize = size;
 	}
@@ -103,6 +129,9 @@ public class LeaderBookKeeper {
 		connectedNodeList.put(sa, confirmed);
 	}
 
+	public List<InetSocketAddress> getCandidatesProtocolAddress(){
+		return new ArrayList<InetSocketAddress>(candidateSet);
+	}
 	/**
 	 * Returns false if there is no sufficient follower have left to send connect message
 	 * to form the ensemble with given replication factor.

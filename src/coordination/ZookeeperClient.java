@@ -36,7 +36,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 public class ZookeeperClient implements Closeable{
 
-	static ZooKeeper zk = null;
+	ZooKeeper zk = null;
 	String zkConnectionString ;
 	int sessionTimeOut = 3000;
 	String nameSpace ;
@@ -49,8 +49,7 @@ public class ZookeeperClient implements Closeable{
 	Configuration config;
 
 	//connect to zookeeper and register a wacher object
-	public ZookeeperClient( Watcher watcher, Configuration config) throws KeeperException, IOException, InterruptedException
-	{
+	public ZookeeperClient( Watcher watcher, Configuration config) throws KeeperException, IOException, InterruptedException{
 		this.config = config;
 		zkConnectionString = config.getZkConnectionString();
 		sessionTimeOut = config.getZkSessionTimeOut();
@@ -68,55 +67,55 @@ public class ZookeeperClient implements Closeable{
 		}
 		myServerZnodePath = serverRootPath + "/" + getHostColonPort( config.getProtocolSocketAddress().toString() ); //( socketAddress != null ? socketAddress : new Random().nextInt(100000) );
 	}
-	
+
 	public boolean createGlobalViewZnode(){
 		try {
+			System.out.println("creating gv znode + " + config.getProtocolPort());
 			zk.create(serversGlobalViewPath, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+			zk.exists(serversGlobalViewPath, true);//set watch
 			return true;
 		} catch (KeeperException e) {
-			if(Code.NodeExists==e.code().intValue())
-				try {
-					zk.exists(serversGlobalViewPath, true);//set watch
-				} catch (KeeperException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
-				} catch (InterruptedException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
-				} // set a watch
-			return false;
-		   //e.printStackTrace();
+
+			//e.printStackTrace();
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
-			return false;
+			//e.printStackTrace();
+
 		}
+		return false;
 	}
-	
-	public String getHostColonPort(String socketAddress)
-	{
+
+	public Stat setGlobalviewUpdaterFailureDetector(){
+		Stat stat=null;
+		try {
+			stat = zk.exists(serversGlobalViewPath, true);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(-1);
+		} 
+		return stat;
+	}
+
+	public String getHostColonPort(String socketAddress){
 		String host = "";
 		int port=0;
 
 		Pattern p = Pattern.compile("^\\s*(.*?):(\\d+)\\s*$");
 		Matcher m = p.matcher(socketAddress);
 
-		if (m.matches()) 
-		{
+		if (m.matches()) {
 			host = m.group(1);
-			
 			if(host.contains("/"))
 				host = host.substring( host.indexOf("/") + 1 );
-			
 			port = Integer.parseInt(m.group(2));
-
 			return host + ":" + port;
 		}else
 			return null;
 
 	}
-	
-	
+
+
 	/**
 	 * As the node might be created between time that exists method is returned and 
 	 * the time that create method is invoked NodeExists exception is checked. 
@@ -134,7 +133,7 @@ public class ZookeeperClient implements Closeable{
 			e.printStackTrace();
 		} 
 	}
-	
+
 
 
 
@@ -145,8 +144,7 @@ public class ZookeeperClient implements Closeable{
 
 	//-------------------------------------------------------------------------------------------------- Server Nodes ---------------------------------------------------------------
 	//deprecated
-	public boolean createServerZnode(ServerData data) throws KeeperException, InterruptedException
-	{
+	public boolean createServerZnode(ServerData data) throws KeeperException, InterruptedException{
 		Stat s = zk.exists(myServerZnodePath, false);
 		if(s==null)
 		{
@@ -155,14 +153,12 @@ public class ZookeeperClient implements Closeable{
 		}
 		return false;
 	}
-	
+
 	//For testing Only
-	public boolean createServerZnode(String nameNode, ServerData data) throws KeeperException, InterruptedException
-	{
+	public boolean createServerZnode(String nameNode, ServerData data) throws KeeperException, InterruptedException{
 		String path = serverRootPath + "/" +  nameNode;
 		Stat s = zk.exists(path, false);
-		if(s==null)
-		{
+		if(s==null){
 			zk.create(path, data.toByteArray(), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
 			return true;
 		}
@@ -170,15 +166,13 @@ public class ZookeeperClient implements Closeable{
 	}
 
 	//if node exist update it otherwise create it with the given data
-	public void updateServerZnode(ServerData data) throws KeeperException, InterruptedException
-	{
+	public void updateServerZnode(ServerData data) throws KeeperException, InterruptedException{
 
 		if(!createServerZnode(data))
 			zk.setData(myServerZnodePath, data.toByteArray(), -1);	
 	}
 
-	public void deleteServerZnode() throws KeeperException, InterruptedException
-	{
+	public void deleteServerZnode() throws KeeperException, InterruptedException{
 		Stat s = zk.exists(myServerZnodePath, false);
 		if(s!=null)
 			zk.delete(myServerZnodePath, -1);
@@ -190,27 +184,23 @@ public class ZookeeperClient implements Closeable{
 		byte[] data = zk.getData(serverRootPath + "/" + nodeName, false, s);
 		return ServerData.parseFrom(data);
 	}
-	
-	public ServerData getServerZnodeDataByProtocolSocketAddress(InetSocketAddress socketAddress) throws KeeperException, InterruptedException, InvalidProtocolBufferException
-	{
+
+	public ServerData getServerZnodeDataByProtocolSocketAddress(InetSocketAddress socketAddress) throws KeeperException, InterruptedException, InvalidProtocolBufferException{
 		return getServerZnodeDataByNodeName( getHostColonPort(socketAddress.toString()) );
 	}
-	
+
 	//testing
-	public ServerData getServerZnodeDatabyFullPath(String path) throws KeeperException, InterruptedException, InvalidProtocolBufferException
-	{
+	public ServerData getServerZnodeDatabyFullPath(String path) throws KeeperException, InterruptedException, InvalidProtocolBufferException{
 		Stat s = new Stat();
 		byte[] data = zk.getData(path, false, s);
 		return ServerData.parseFrom(data);
 	}
-	
-	public List<String> getServerList() throws KeeperException, InterruptedException
-	{
+
+	public List<String> getServerList() throws KeeperException, InterruptedException{
 		return zk.getChildren(serverRootPath, false);
 	}
-	
-	public Stat setServerFailureDetector(String nodeName)
-	{
+
+	public Stat setServerFailureDetector(String nodeName){
 		Stat stat=null;
 		try {
 			stat = zk.exists(serverRootPath + "/" + nodeName, true);
@@ -221,9 +211,8 @@ public class ZookeeperClient implements Closeable{
 		} 
 		return stat;
 	}
-	
-	public Stat setServerFailureDetector(InetSocketAddress protocolSocketAddress)
-	{
+
+	public Stat setServerFailureDetector(InetSocketAddress protocolSocketAddress){
 		return setServerFailureDetector(getHostColonPort(protocolSocketAddress.toString()));
 	}
 
@@ -236,30 +225,26 @@ public class ZookeeperClient implements Closeable{
 	 * @throws KeeperException
 	 * @throws InterruptedException
 	 */
-	public String createEnsembleZnode(EnsembleData data) throws KeeperException, InterruptedException
-	{
-		String ensemblePath = zk.create(ensembleRootPath+"/ensemble-", data.toByteArray(), Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT_SEQUENTIAL);
+	public String createEnsembleZnode(EnsembleData data) throws KeeperException, InterruptedException{
+		String ensemblePath = zk.create(ensembleRootPath+"/ensemble-", data.toByteArray(), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
 		//zk.create( ensemblePath + "/" + ensembleMembersZnodeName, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT );
 		return ensemblePath;
 	}
-
+	/*
 	public void createMyEnsembleEmphemeralZnode(String ensemblePath, String myZnodeName) throws KeeperException, InterruptedException
 	{
 		zk.create( ensemblePath + "/" + ensembleMembersZnodeName + "/" + myZnodeName, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
 	}
-
-	public void updateEnsembleZnode(String ensemblePath, EnsembleData data) throws KeeperException, InterruptedException
-	{
+	 */
+	public void updateEnsembleZnode(String ensemblePath, EnsembleData data) throws KeeperException, InterruptedException{
 		zk.setData(ensemblePath, data.toByteArray(), -1);
 	}
 
-	public void deleteEnsembleZnode(String ensemblePath) throws InterruptedException, KeeperException
-	{
+	public void deleteEnsembleZnode(String ensemblePath) throws InterruptedException, KeeperException{
 		zk.delete(ensemblePath, -1);
 	}
 
-	public EnsembleData getEnsembleData(String ensemblePath) throws KeeperException, InterruptedException, InvalidProtocolBufferException
-	{
+	public EnsembleData getEnsembleData(String ensemblePath) throws KeeperException, InterruptedException, InvalidProtocolBufferException{
 		EnsembleData data = EnsembleData.parseFrom(zk.getData(ensemblePath,false, null));
 		return data;
 	}
@@ -279,22 +264,17 @@ public class ZookeeperClient implements Closeable{
 	}
 	//choose subset of all children of server node and sort them, nodes are chosen randomly and there is a lower limit of number of retured candidates 
 	//working fine
-	public List<ServerData> getRandomEnsembleCandidates() throws KeeperException, InterruptedException, InvalidProtocolBufferException
-	{
+	public List<ServerData> getRandomEnsembleCandidates() throws KeeperException, InterruptedException, InvalidProtocolBufferException{
 		float subSetFraction = 0.1f;
 		int minCandidates = 5;
 		int numCandidates = minCandidates;
 		boolean returnAll = false;
 
-
 		List<String> children = zk.getChildren(serverRootPath, false);
-
-		if( minCandidates >= children.size() )
-		{
+		if( minCandidates >= children.size() ){
 			returnAll=true;
 			numCandidates = children.size();
-		}else
-		{
+		}else{
 			if( minCandidates >= subSetFraction*children.size() )
 			{
 				numCandidates = minCandidates;
@@ -310,8 +290,7 @@ public class ZookeeperClient implements Closeable{
 		int nextCandidateIndex=0;
 		int sortedCandidatesSize=0;
 		Random rnd = new Random();
-		for(int i = 0 ; i < numCandidates; i++)
-		{
+		for(int i = 0 ; i < numCandidates; i++){
 
 			if(returnAll==true)
 				nextCandidateIndex=i;
@@ -353,22 +332,21 @@ public class ZookeeperClient implements Closeable{
 	}
 
 	//---------------------------------------------------Servers View Snapshot----------------------
-	
+
 	//sort all the servers based on the capacity left using insertion sort, those with max capacity come in the beginning
-	public List<ServerData> getSortedServersList() throws KeeperException, InterruptedException, InvalidProtocolBufferException
-	{
+	public List<ServerData> getSortedServersList() throws KeeperException, InterruptedException, InvalidProtocolBufferException{
 		List<ServerData> sortedServers = new LinkedList<ServerData>(); 
 		List<String> children = zk.getChildren(serverRootPath, false);
-		
+
 		for(int i = 0 ; i < children.size(); i++)
 		{
 			//Stat stat = new Stat();
-			
+
 			byte[] data = zk.getData(serverRootPath + "/" + children.get(i), false, null);
 
 			ServerData serverData = ServerData.parseFrom(data);
 
-	
+
 			boolean addedInLoop = false;
 			for(int j=0; j < sortedServers.size() ;j++)
 			{
@@ -386,15 +364,31 @@ public class ZookeeperClient implements Closeable{
 
 		return sortedServers;
 	}
-	
+
 	void updateServersGlobalViewZnode(ServersGlobalView data) throws KeeperException, InterruptedException{
-		Stat s = zk.exists(serversGlobalViewPath, false);
+		/*		Stat s = zk.exists(serversGlobalViewPath, true);
 		if(s==null)
 			zk.create(serversGlobalViewPath, data.toByteArray(), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
 		else 
 			zk.setData(serversGlobalViewPath, data.toByteArray(), -1);	
+		 */		
+		Stat s = zk.exists(serversGlobalViewPath, true);
+		if(s!=null)
+			zk.setData(serversGlobalViewPath, data.toByteArray(), -1);	
 	}
-	
+
+	void deleteGlobalViewZnode(){
+		try {
+			zk.delete(serversGlobalViewPath,-1);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			//e.printStackTrace();
+		} catch (KeeperException e) {
+			// TODO Auto-generated catch block
+			//e.printStackTrace();
+		}
+	}
+
 	/**
 	 * Return serversglobalview if it exist otherwise it return null.
 	 * @return ServersGlobalView
@@ -411,8 +405,7 @@ public class ZookeeperClient implements Closeable{
 	}
 
 	@Override
-	public void close() throws IOException 
-	{
+	public void close() throws IOException {
 		try {
 			zk.close();
 		} catch (InterruptedException e) {
@@ -422,6 +415,6 @@ public class ZookeeperClient implements Closeable{
 	}
 
 
-	
+
 }
 

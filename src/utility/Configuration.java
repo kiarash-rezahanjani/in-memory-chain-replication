@@ -54,12 +54,11 @@ public class Configuration {
 		Properties applicationProperties;
 		FileInputStream input;
 		try {
-
 			//default properties
 			input = new FileInputStream(defaultPropertiesPath);
 			defaultProperty.load(input);
 			input.close();
-			
+
 			zkNameSpace = defaultProperty.getProperty("zkNameSpace").trim();
 			zkServersRoot = defaultProperty.getProperty("zkServersRoot").trim();
 			zkClientRoot = defaultProperty.getProperty("zkClientRoot").trim();

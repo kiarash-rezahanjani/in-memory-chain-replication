@@ -28,7 +28,7 @@ import coordination.Znode.ServersGlobalView;
 
 public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for testing*/{
 	private SenderReceiver senderReceiver;
-	ExecutorService executor;
+	//ExecutorService executor;
 	Configuration conf;
 	LeaderBookKeeper lbk = new LeaderBookKeeper();
 	FollowerBookkeeper fbk = new FollowerBookkeeper();
@@ -37,6 +37,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 	AtomicInteger checkPointedStatus = new AtomicInteger();
 	boolean running = true;
 	ServersGlobalView serversGlobalView;
+	GlobalViewServer gvServer;
 	boolean globalViewUpdater = false;
 
 	public Protocol(Configuration conf, ZookeeperClient zkCli ) {
@@ -46,7 +47,8 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 
 		try {
 			zkCli.createServerZnode(getInitialServerData());
-			executor = Executors.newFixedThreadPool(2);
+			//executor = Executors.newFixedThreadPool(2);
+			gvServer = new GlobalViewServer(zkCli, 8000);
 			startGlobalViewServer();
 		} catch (KeeperException e) {
 			// TODO Auto-generated catch block
@@ -68,14 +70,15 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 
 	//for testing only
 	boolean leader=false;
-	
+
 	public Protocol(Configuration conf, boolean leader){
 		this.conf = conf;
 		senderReceiver = new SenderReceiver(conf, this);
 		try{
 			this.zkCli = new ZookeeperClient(this, conf);
 			zkCli.createServerZnode(getInitialServerData());
-			executor = Executors.newFixedThreadPool(2);
+			//executor = Executors.newFixedThreadPool(2);
+			gvServer = new GlobalViewServer(zkCli, 8000);
 			startGlobalViewServer();
 		} catch (KeeperException e) {
 			// TODO Auto-generated catch block
@@ -168,7 +171,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 	/**
 	 * Get the list of servers available for forming ensemble, set watch on the servers and send join resuests to them.
 	 * @param replicationFactor
-	 */
+
 	void leaderStartsFormingEnsemble(int replicationFactor){
 		if(status.get()!=ServerStatus.ALL_FUNCTIONAL_ACCEPT_REQUEST  
 				&& status.get()!=ServerStatus.FORMING_ENSEMBLE_LEADER_STARTED ){
@@ -203,7 +206,44 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 		if(lbk.getRequestedNodeList().size() < lbk.getEnsembleSize()-1)
 			rollBack("leaderStartsFormingEnsemble  lbk.getRequestedNodeList().size() < lbk.getEnsembleSize()-1");
 	}
+	 */
+	void leaderStartsFormingEnsemble(int replicationFactor){
+		if(status.get()!=ServerStatus.ALL_FUNCTIONAL_ACCEPT_REQUEST  
+				&& status.get()!=ServerStatus.FORMING_ENSEMBLE_LEADER_STARTED ){
+			System.out.println("Formin ensemble while status.getStatus()!=ServerStatus.ALL_FUNCTIONAL_ACCEPT_REQUEST . ");
+			System.exit(-1);
+		}
 
+		if(!lbk.isEmpty()){
+			System.out.println("An attemp is made to form ensemble and Leaderbook Keeper is not empty. ");
+			System.exit(-1);
+		}
+
+		List<ServerData> candidatesDataServer = getCandidates();//get candidates
+		if(candidatesDataServer.size() < replicationFactor-1){
+			System.out.println("candidates.size() < replicationFactor");
+			System.exit(-1);
+		}
+		lbk.setEnsembleSize(replicationFactor);
+		lbk.setCandidatesServerData(candidatesDataServer);
+		List<InetSocketAddress> candidates =  lbk.getCandidatesProtocolAddress();
+		//		lbk.addCandidateList(candidates);
+		addStat();
+		checkPointedStatus.set(status.get());
+		status.set(ServerStatus.FORMING_ENSEMBLE_LEADER_WAIT_FOR_ACCEPT);
+		addStat();
+		//-1 : leader is also part of the chain
+		for(int i=0 ; i<replicationFactor-1; i++){
+			Stat stat = zkCli.setServerFailureDetector(candidates.get(i));
+			if(stat != null){
+				lbk.putRequestedNode(candidates.get(i), false);
+				joinRequest(candidates.get(i));
+			}
+		}
+
+		if(lbk.getRequestedNodeList().size() < lbk.getEnsembleSize()-1)
+			rollBack("leaderStartsFormingEnsemble  lbk.getRequestedNodeList().size() < lbk.getEnsembleSize()-1");
+	}
 
 	void leaderProcessWaitForAccept(ProtocolMessage message){
 		if(message.getMessageType()== MessageType.ACCEPTED_JOIN_ENSEMBLE_REQUEST){
@@ -211,12 +251,22 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 			//sufficient number of accept messages has been received
 			if(lbk.isAcceptedComplete()){
 				status.set(ServerStatus.FORMING_ENSEMBLE_LEADER_WAIT_FOR_CONNECTED_SIGNAL);// need to check if there is enough capacity left
-				List<InetSocketAddress> listOfEnsembleServers = new ArrayList<InetSocketAddress>();
-				listOfEnsembleServers.addAll(lbk.getAcceptedList());
-				listOfEnsembleServers.add(0, senderReceiver.getServerSocketAddress());
-				lbk.setEnsembleMembers(listOfEnsembleServers);
+				List<InetSocketAddress> protocolAddressList = new ArrayList<InetSocketAddress>();
+				List<InetSocketAddress> bufferServerAddressList = new ArrayList<InetSocketAddress>();
+				protocolAddressList.add(0, conf.getProtocolSocketAddress());
+				protocolAddressList.addAll(lbk.getAcceptedList());
+
+				bufferServerAddressList.add(0, conf.getBufferServerSocketAddress());
+				for(InetSocketAddress prot : lbk.getAcceptedList()){
+					bufferServerAddressList.add(lbk.protocolToBufferServer.get(prot));
+				}
+
+				EnsembleBean ensembleBean = new EnsembleBean();
+				ensembleBean.setEnsembleBufferServerAddressList(bufferServerAddressList);
+				ensembleBean.setEnsembleProtocolAddressList(protocolAddressList);
+				lbk.setEnsembleMembers(protocolAddressList );
 				for(InetSocketAddress sa : lbk.getAcceptedList())
-					connectSignal(sa, listOfEnsembleServers);
+					connectSignal(sa, ensembleBean);
 			}
 		}
 
@@ -227,7 +277,27 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 		}
 
 	}
-
+	public static class EnsembleBean implements java.io.Serializable{
+		private static final long serialVersionUID = 1L;
+		List<InetSocketAddress> ensembleProtocolAddresses;
+		List<InetSocketAddress> ensembleBufferServerAddresses;
+		public EnsembleBean(){
+			ensembleProtocolAddresses = new ArrayList<InetSocketAddress>();
+			ensembleBufferServerAddresses  = new ArrayList<InetSocketAddress>();
+		}
+		public void setEnsembleProtocolAddressList(List<InetSocketAddress> protocolAddressList){
+			this.ensembleProtocolAddresses.addAll(protocolAddressList);
+		}
+		public void setEnsembleBufferServerAddressList(List<InetSocketAddress> bufferServerAddressList){
+			this.ensembleBufferServerAddresses.addAll(bufferServerAddressList);
+		}
+		public List<InetSocketAddress> getEnsembleProtocolAddressList(){
+			return ensembleProtocolAddresses;
+		}
+		public List<InetSocketAddress> getEnsembleBufferServerAddressList(){
+			return ensembleBufferServerAddresses;
+		}
+	}
 	void leaderWaitForConnectedSignal(ProtocolMessage message){
 		if(message.getMessageType()== MessageType.SUCEEDED_ENSEMBLE_CONNECTION){
 			lbk.putConnectedNode(message.getSrcSocketAddress(), true);
@@ -295,11 +365,12 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 		if(message.getMessageType()==MessageType.START_ENSEMBLE_CONNECTION ){
 			status.set(ServerStatus.FORMING_ENSEMBLE_NOT_LEADER_CONNECTING);
 			addStat();
-			List<InetSocketAddress> ensembleMembers = (List<InetSocketAddress> ) message.msgContent;	
+			EnsembleBean ensemble = (EnsembleBean) message.msgContent;	
+			List<InetSocketAddress> ensembleMembersBufferServerAddress = ensemble.getEnsembleBufferServerAddressList();	
 			boolean success = true;//callback //cdrHandle.followerConnectsEnsemble(ensembleMembers);
-
+			System.out.println("BufferServers  " + ensembleMembersBufferServerAddress + " me "+ conf.getProtocolPort());
 			if(success){	
-				fbk.setEnsembleMembers(ensembleMembers);	
+				fbk.setEnsembleMembers(ensemble.getEnsembleProtocolAddressList());	
 				followerConnectedSignal(message.getSrcSocketAddress());
 				status.set(ServerStatus.FORMING_ENSEMBLE_NOT_LEADER_WAIT_FOR_START_SIGNAL);// need to check if there is enough capacity left
 			}else{
@@ -312,8 +383,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 			rollBack("followerStartConnections OPERATION_FAILED");
 	}
 
-	void followerWaitForStartService(ProtocolMessage message)
-	{
+	void followerWaitForStartService(ProtocolMessage message){
 		if(message.getMessageType()==MessageType.START_SERVICE){
 			String ensemblePath = message.getMsgContent().toString();
 			if(ensemblePath==null || ensemblePath.length()==0){
@@ -349,8 +419,8 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 	 * @param srcSocketAddress
 	 * @param list of servers in ensemble. the first element of the list is the leader of ensemble.
 	 */
-	public void connectSignal(InetSocketAddress srcSocketAddress, List<InetSocketAddress> list){
-		senderReceiver.send(srcSocketAddress, new ProtocolMessage(MessageType.START_ENSEMBLE_CONNECTION, list));
+	public void connectSignal(InetSocketAddress srcSocketAddress, Object ensemble){
+		senderReceiver.send(srcSocketAddress, new ProtocolMessage(MessageType.START_ENSEMBLE_CONNECTION, ensemble));
 	}
 
 	public void followerConnectedSignal(InetSocketAddress srcSocketAddress){
@@ -506,8 +576,33 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 		return list;
 	}
 
+	//---------------------------------------------
+	//testing version
+	public List<ServerData> getCandidates(){ //throws InvalidProtocolBufferException, KeeperException, InterruptedException 
+		List<ServerData> sortedServers;
+		List<ServerData> list = new ArrayList<ServerData>();
+		try {
+			for(;;){//for testing
+				sortedServers = zkCli.getSortedServersList();
+				if(sortedServers.size()>=3)
+					break;
+				Thread.sleep(1000);
+			}
+			list = new ArrayList<ServerData>();
+			for(ServerData s : sortedServers){
+				if(!conf.getProtocolSocketAddress().toString().contains(s.getSocketAddress()))
+					list.add(s);
+			}
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
+		return list;
+	}
+
 	//------------------------------------------------------
 	public void failureOf(String strSocketAddress){
+		System.out.println("Server Failure." + strSocketAddress);
 		if(isLeader()){
 			if(lbk.contains(NetworkUtil.parseInetSocketAddress(strSocketAddress)))
 				rollBack("one of the contacted server was failed during operation");
@@ -534,12 +629,14 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 		System.out.println("Starting Global View Server ..." + conf.getProtocolPort());
 		globalViewUpdater = zkCli.createGlobalViewZnode();
 		if(globalViewUpdater){
-			executor.submit(new GlobalViewServer(zkCli, 3000)); 
+			new Thread(gvServer).start(); 
 			System.out.println("Started global viewer by " + conf.getProtocolPort());
-		}		
+		}
+		zkCli.setGlobalviewUpdaterFailureDetector();
 	}
 	public void stopGlobalViewUpdater(){
-		executor.shutdownNow();
+		gvServer.stopRunning();
+		//executor.shutdownNow();
 		System.out.println("Shutdown global viewer by " + conf.getProtocolPort());
 	}
 
@@ -547,17 +644,25 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 	@Override
 	public void process(WatchedEvent event) {
 		String path = event.getPath();
+
 		if (event.getType()== Event.EventType.NodeDeleted){
+			System.out.println("failed1."+path  + "received by " + conf.getProtocolPort());
 			//if the failed node is a server
-			if(path.contains(conf.getZkServersRoot()))
+			if(path.contains(conf.getZkServersRoot()+"/"))
 				failureOf(path.replace(conf.getZkEnsemblesRoot()+conf.getZkServersRoot()+"/", ""));//serverFailure(path);
 
 			//if the failed node is a client
-			if(path.contains(conf.getZkClientRoot()))
+			if(path.contains(conf.getZkClientRoot()+"/"))
 				;//clientFailure(path);
 			//if the failed node is a client
-			if(path.contains(conf.getZkServersGlobalViewRoot()))
+			if(path.contains(conf.getZkServersGlobalViewRoot())){
+				if(globalViewUpdater){
+					globalViewUpdater = false;
+					stopGlobalViewUpdater();
+				}
 				startGlobalViewServer();//clientFailure(path);
+			}
+
 		}
 
 		if (event.getType() == Event.EventType.None) {
