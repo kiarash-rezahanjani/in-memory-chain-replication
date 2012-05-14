@@ -15,3 +15,10 @@ zkServersRoot = /servers
 zkClientRoot = /clients
 zkEnsemblesRoot = /ensembles
 zkServersGlobalViewRoot = /serversglobalview
+
+//global view update interval in millisecond
+gvInfoInterval = 6000
+
+//server + ensemble + gc + check for leadership interval 
+serverInfoInterval = 4000
+serverInfoIntervalDeviation = 3000

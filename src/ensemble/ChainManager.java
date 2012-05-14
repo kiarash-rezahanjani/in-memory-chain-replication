@@ -277,7 +277,7 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 			System.out.println("ZkUpdate is running.." + conf.getProtocolPort() );
 			while(running){
 				try {
-					Thread.sleep(new Random().nextInt(4000)+3000);
+					Thread.sleep(new Random().nextInt(conf.getServerInfoIntervalDeviation())+conf.getServerInfoInterval());
 					Runtime.getRuntime().gc();
 					currentCapacityLeft = getcapacityLeft();
 					if(ensemble == null)
@@ -315,10 +315,12 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 			}
 			System.out.println("ZkUpdate stopped.." + conf.getProtocolPort() );
 		}
+		
 		private int getcapacityLeft() {
 			// TODO Auto-generated method stub
 			System.out.println(Runtime.getRuntime().freeMemory()  + "  ---  " + Runtime.getRuntime().totalMemory());
-			return (int) ((((double)Runtime.getRuntime().freeMemory())/Runtime.getRuntime().totalMemory()) * 100);
+			return new Random().nextInt(100);
+			//return (int) ((((double)Runtime.getRuntime().freeMemory())/Runtime.getRuntime().totalMemory()) * 100);
 		}
 
 		ServerData getServerData(int capacity, ServerData.Status status){

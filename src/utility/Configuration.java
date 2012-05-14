@@ -13,6 +13,11 @@ public class Configuration {
 	int bufferServerPort;
 	//int bufferClientPort;
 	int ensembleBufferSize;
+	
+	int gvInfoInterval;
+	int serverInfoInterval;
+	int serverInfoIntervalDeviation;
+	
 	InetSocketAddress protocolSocketAddress;
 	InetSocketAddress bufferServerSocketAddress;
 	//InetSocketAddress bufferClientSocketAddress;
@@ -67,6 +72,9 @@ public class Configuration {
 			zkConnectionString = defaultProperty.getProperty("zkConnectionString").trim();
 			zkSessionTimeOut = Integer.parseInt( defaultProperty.getProperty("zkSessionTimeOut") );
 
+			gvInfoInterval = Integer.parseInt( defaultProperty.getProperty("gvInfoInterval") );
+			serverInfoInterval = Integer.parseInt( defaultProperty.getProperty("serverInfoInterval") );
+			serverInfoIntervalDeviation = Integer.parseInt( defaultProperty.getProperty("serverInfoIntervalDeviation") );
 			//application properties
 			applicationProperties = new Properties(defaultProperty);
 			input = new FileInputStream(applicationPropertiesPath);
@@ -93,6 +101,18 @@ public class Configuration {
 			e.printStackTrace();
 			System.exit(-1);
 		}
+	}
+
+	public int getGvInfoInterval() {
+		return gvInfoInterval;
+	}
+
+	public int getServerInfoInterval() {
+		return serverInfoInterval;
+	}
+
+	public int getServerInfoIntervalDeviation() {
+		return serverInfoIntervalDeviation;
 	}
 
 	public String getDbClientId() {

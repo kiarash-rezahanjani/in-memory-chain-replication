@@ -81,7 +81,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 			this.zkCli = new ZookeeperClient(this, conf);
 			zkCli.createServerZnode(getInitialServerData());
 			//executor = Executors.newFixedThreadPool(2);
-			gvServer = new GlobalViewServer(zkCli, 5000);
+			gvServer = new GlobalViewServer(zkCli,  conf.getGvInfoInterval());
 			startGlobalViewServer();
 		} catch (KeeperException e) {
 			// TODO Auto-generated catch block
@@ -386,13 +386,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 	}
 
 	//-------------------------------------------Follower----------------------------------	
-	private void followerAcceptRequest(ProtocolMessage message) 
-	{
-		try {//testing
-			Thread.sleep(200);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
+	private void followerAcceptRequest(ProtocolMessage message){
 		if(message.getMessageType()==MessageType.JOIN_ENSEMBLE_REQUEST ){
 			//check pointing the current status
 			checkPointedStatus.set(status.get());
@@ -688,11 +682,11 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 		//	System.out.println("Starting Global View Server ..." + conf.getProtocolPort());
 		globalViewUpdater = zkCli.createGlobalViewZnode();
 		if(globalViewUpdater){
-			new Thread(new GlobalViewServer(zkCli, 5000)).start(); 
+			new Thread(new GlobalViewServer(zkCli, conf.getGvInfoInterval())).start(); 
 			//	System.out.println("Started global viewer by " + conf.getProtocolPort());
 		}
 		try {
-			Thread.sleep(500);
+			Thread.sleep(10);
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

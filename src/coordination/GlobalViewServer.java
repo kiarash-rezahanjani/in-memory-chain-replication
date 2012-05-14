@@ -13,8 +13,7 @@ public class GlobalViewServer implements Runnable{
 	int timeInterval = 3000;
 	boolean running = true;
 
-	public GlobalViewServer(ZookeeperClient zkCli, int updateTimeInterval)
-	{
+	public GlobalViewServer(ZookeeperClient zkCli, int updateTimeInterval){
 		this.zkCli=zkCli;
 		this.timeInterval = updateTimeInterval;
 	}

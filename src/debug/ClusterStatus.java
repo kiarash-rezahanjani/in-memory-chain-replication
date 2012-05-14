@@ -10,6 +10,7 @@ import org.apache.zookeeper.ZooKeeper;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import coordination.Znode.EnsembleData;
 import coordination.Znode.ServerData;
 import coordination.Znode.ServersGlobalView;
 import coordination.ZookeeperClient;
@@ -48,17 +49,35 @@ public class ClusterStatus implements Watcher{
 				e.printStackTrace();
 			}			
 			cs.printServers();
-		//	printClient();
+			//	printClient();
 			cs.printGlobalView();
+			cs.printEnsembles();
 		}
 	}
 	private  void printGlobalView() {
 		ServersGlobalView gv = zk.getServersGlobalView();
 		System.out.println("Global View: \n"+gv);
 	}
-	private void printClient() {
+	private void printEnsembles() {
 		// TODO Auto-generated method stub
-		//System.out.println("Global View: \n"+gv);
+
+		try {
+			List<String> ensembles = zk.getZkHandle().getChildren(conf.getZkNameSpace()+conf.getZkEnsemblesRoot(), false);
+			for(String path : ensembles){
+				EnsembleData data = zk.getEnsembleData(conf.getZkNameSpace()+conf.getZkEnsemblesRoot()+"/"+path);
+				System.out.println("Ensemble: \n" + data);
+			}
+		} catch (InvalidProtocolBufferException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (KeeperException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
 	}
 	private  void printServers() {
 		// TODO Auto-generated method stub
@@ -69,7 +88,7 @@ public class ClusterStatus implements Watcher{
 			e.printStackTrace();
 		}
 	}
-	
+
 	@Override
 	public void process(WatchedEvent event) {
 		// TODO Auto-generated method stub
