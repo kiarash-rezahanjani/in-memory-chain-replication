@@ -25,6 +25,7 @@ import utility.NetworkUtil;
 import coordination.Znode.EnsembleData;
 import coordination.Znode.ServerData;
 import coordination.Znode.ServersGlobalView;
+import ensemble.EnsembleManager;
 
 public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for testing*/{
 	private SenderReceiver senderReceiver;
@@ -39,10 +40,12 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 	ServersGlobalView serversGlobalView;
 	GlobalViewServer gvServer;
 	boolean globalViewUpdater = false;
+	EnsembleManager ensembleCallBack ;
 
-	public Protocol(Configuration conf, ZookeeperClient zkCli ) {
+	public Protocol(Configuration conf, ZookeeperClient zkCli, EnsembleManager ensembleCallBack ) {
 		this.conf = conf;
 		this.zkCli = zkCli;
+		this.ensembleCallBack = ensembleCallBack;
 		senderReceiver = new SenderReceiver(conf, this);
 
 		try {
@@ -78,7 +81,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 			this.zkCli = new ZookeeperClient(this, conf);
 			zkCli.createServerZnode(getInitialServerData());
 			//executor = Executors.newFixedThreadPool(2);
-			gvServer = new GlobalViewServer(zkCli, 8000);
+			gvServer = new GlobalViewServer(zkCli, 5000);
 			startGlobalViewServer();
 		} catch (KeeperException e) {
 			// TODO Auto-generated catch block
@@ -207,7 +210,72 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 			rollBack("leaderStartsFormingEnsemble  lbk.getRequestedNodeList().size() < lbk.getEnsembleSize()-1");
 	}
 	 */
-	void leaderStartsFormingEnsemble(int replicationFactor){
+	/*void checkForLeaderShip(){
+		serversGlobalView = zkCli.getServersGlobalView();
+		if(serversGlobalView==null)
+			return;
+		List<Integer> leaderIndex = serversGlobalView.getLeaderIndexList();
+		List<ServerData> serverData = serversGlobalView.getSortedServersList();
+		List<ServerData> myServers = new ArrayList<ServerData>();
+		for(int i=0; i<leaderIndex.size(); i++){
+			String protocolAddress = serverData.get(leaderIndex.get(i)).getSocketAddress();
+			if(NetworkUtil.isEqualAddress(conf.getProtocolSocketAddress(), protocolAddress)){
+				int last;
+				if(i < leaderIndex.size()-1)
+					last = leaderIndex.get(i+1);
+				else
+					last = serverData.size();
+				for(int j=leaderIndex.get(i)+1; j<last; j++)
+					myServers.add(serverData.get(j));
+				break;
+			}
+		}
+		if(myServers.size()>0)
+			leaderStartsFormingEnsemble(myServers);	
+	}
+
+	void leaderStartsFormingEnsemble(List<ServerData> servers){
+		if(status.get()!=ServerStatus.ALL_FUNCTIONAL_ACCEPT_REQUEST  
+				&& status.get()!=ServerStatus.FORMING_ENSEMBLE_LEADER_STARTED ){
+			System.out.println("Formin ensemble while status.getStatus()!=ServerStatus.ALL_FUNCTIONAL_ACCEPT_REQUEST . ");
+			//return;
+			System.exit(-1);
+		}
+
+		if(!lbk.isEmpty()){
+			System.out.println("An attemp is made to form ensemble and Leaderbook Keeper is not empty. ");
+			System.exit(-1);
+		}
+
+		List<ServerData> candidatesDataServer = servers;//get candidates
+		int replicationFactor = servers.size()+1;
+		if(candidatesDataServer.size() < replicationFactor-1){
+			System.out.println("candidates.size() < replicationFactor");
+			System.exit(-1);
+		}
+		lbk.setEnsembleSize(replicationFactor);
+		lbk.setCandidatesServerData(candidatesDataServer);
+		List<InetSocketAddress> candidates =  lbk.getCandidatesProtocolAddress();
+		//		lbk.addCandidateList(candidates);
+		addStat();
+		checkPointedStatus.set(status.get());
+		status.set(ServerStatus.FORMING_ENSEMBLE_LEADER_WAIT_FOR_ACCEPT);
+		addStat();
+		//-1 : leader is also part of the chain
+		for(int i=0 ; i<replicationFactor-1; i++){
+			Stat stat = zkCli.setServerFailureDetector(candidates.get(i));
+			if(stat != null){
+				lbk.putRequestedNode(candidates.get(i), false);
+				joinRequest(candidates.get(i));
+			}
+		}
+
+		if(lbk.getRequestedNodeList().size() < lbk.getEnsembleSize()-1)
+			rollBack("leaderStartsFormingEnsemble  lbk.getRequestedNodeList().size() < lbk.getEnsembleSize()-1");
+	}
+	 */
+
+	public void leaderStartsFormingEnsemble(int replicationFactor){
 		if(status.get()!=ServerStatus.ALL_FUNCTIONAL_ACCEPT_REQUEST  
 				&& status.get()!=ServerStatus.FORMING_ENSEMBLE_LEADER_STARTED ){
 			System.out.println("Formin ensemble while status.getStatus()!=ServerStatus.ALL_FUNCTIONAL_ACCEPT_REQUEST . ");
@@ -265,8 +333,13 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 				ensembleBean.setEnsembleBufferServerAddressList(bufferServerAddressList);
 				ensembleBean.setEnsembleProtocolAddressList(protocolAddressList);
 				lbk.setEnsembleMembers(protocolAddressList );
-				for(InetSocketAddress sa : lbk.getAcceptedList())
-					connectSignal(sa, ensembleBean);
+				boolean connected = ensembleCallBack.newEnsemble(bufferServerAddressList);
+				if(!connected)
+					rollBack("Leader failed to connect to the followers.");
+				else
+					for(InetSocketAddress sa : lbk.getAcceptedList())
+						connectSignal(sa, ensembleBean);
+
 			}
 		}
 
@@ -275,37 +348,14 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 			if(!lbk.waitForNextAcceptedMessage())
 				rollBack("leaderProcessWaitForAccept !lbk.waitForNextAcceptedMessage()");
 		}
+	}
 
-	}
-	public static class EnsembleBean implements java.io.Serializable{
-		private static final long serialVersionUID = 1L;
-		List<InetSocketAddress> ensembleProtocolAddresses;
-		List<InetSocketAddress> ensembleBufferServerAddresses;
-		public EnsembleBean(){
-			ensembleProtocolAddresses = new ArrayList<InetSocketAddress>();
-			ensembleBufferServerAddresses  = new ArrayList<InetSocketAddress>();
-		}
-		public void setEnsembleProtocolAddressList(List<InetSocketAddress> protocolAddressList){
-			this.ensembleProtocolAddresses.addAll(protocolAddressList);
-		}
-		public void setEnsembleBufferServerAddressList(List<InetSocketAddress> bufferServerAddressList){
-			this.ensembleBufferServerAddresses.addAll(bufferServerAddressList);
-		}
-		public List<InetSocketAddress> getEnsembleProtocolAddressList(){
-			return ensembleProtocolAddresses;
-		}
-		public List<InetSocketAddress> getEnsembleBufferServerAddressList(){
-			return ensembleBufferServerAddresses;
-		}
-	}
 	void leaderWaitForConnectedSignal(ProtocolMessage message){
 		if(message.getMessageType()== MessageType.SUCEEDED_ENSEMBLE_CONNECTION){
 			lbk.putConnectedNode(message.getSrcSocketAddress(), true);
 
 			if(lbk.isConnectedComplete()){
-				addStat();
-				status.set(ServerStatus.ALL_FUNCTIONAL_ACCEPT_REQUEST);
-				addStat();
+
 				printStattransition();
 				String ensemblePath = leaderCreatesEnsembleZnode(lbk.getEnsembleMembers());
 				if(ensemblePath==null){
@@ -318,6 +368,12 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 				}
 				System.out.println("CALLBACK.leaderStartsService(ensemblePath);");
 				//CALLBACK.leaderStartsService(ensemblePath);//maybe its not necessary
+				ensembleCallBack.setEnsembleZnodePath(ensemblePath);
+
+				addStat();
+				status.set(ServerStatus.ALL_FUNCTIONAL_ACCEPT_REQUEST);
+				lbk.clear();
+				addStat();
 			}
 		}
 
@@ -394,6 +450,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 			System.out.println("CALLBACK.followerStartsService(ensemblePath); Path: " + ensemblePath);
 			//CALLBACK.followerStartsService(ensemblePath);// we dont need this as they are alrady ready for the service
 			status.set(ServerStatus.ALL_FUNCTIONAL_ACCEPT_REQUEST);// need to check if there is enough capacity left
+			fbk.clear();
 			//signal the coordinator
 			addStat();
 			printStattransition();
@@ -626,11 +683,17 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 	}
 	//---------------------------------Global View Updater--------------------------
 	public void startGlobalViewServer(){
-		System.out.println("Starting Global View Server ..." + conf.getProtocolPort());
+		//	System.out.println("Starting Global View Server ..." + conf.getProtocolPort());
 		globalViewUpdater = zkCli.createGlobalViewZnode();
 		if(globalViewUpdater){
-			new Thread(gvServer).start(); 
-			System.out.println("Started global viewer by " + conf.getProtocolPort());
+			new Thread(new GlobalViewServer(zkCli, 5000)).start(); 
+			//	System.out.println("Started global viewer by " + conf.getProtocolPort());
+		}
+		try {
+			Thread.sleep(500);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		zkCli.setGlobalviewUpdaterFailureDetector();
 	}
@@ -662,7 +725,10 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 				}
 				startGlobalViewServer();//clientFailure(path);
 			}
+		}
 
+		if(event.getType()== Event.EventType.NodeCreated){
+			System.out.println("WTF node created notification.");
 		}
 
 		if (event.getType() == Event.EventType.None) {
@@ -683,5 +749,25 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 			}
 		}
 	}
-
+	public static class EnsembleBean implements java.io.Serializable{
+		private static final long serialVersionUID = 1L;
+		List<InetSocketAddress> ensembleProtocolAddresses;
+		List<InetSocketAddress> ensembleBufferServerAddresses;
+		public EnsembleBean(){
+			ensembleProtocolAddresses = new ArrayList<InetSocketAddress>();
+			ensembleBufferServerAddresses  = new ArrayList<InetSocketAddress>();
+		}
+		public void setEnsembleProtocolAddressList(List<InetSocketAddress> protocolAddressList){
+			this.ensembleProtocolAddresses.addAll(protocolAddressList);
+		}
+		public void setEnsembleBufferServerAddressList(List<InetSocketAddress> bufferServerAddressList){
+			this.ensembleBufferServerAddresses.addAll(bufferServerAddressList);
+		}
+		public List<InetSocketAddress> getEnsembleProtocolAddressList(){
+			return ensembleProtocolAddresses;
+		}
+		public List<InetSocketAddress> getEnsembleBufferServerAddressList(){
+			return ensembleBufferServerAddresses;
+		}
+	}
 }

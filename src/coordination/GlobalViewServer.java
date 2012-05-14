@@ -10,7 +10,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 public class GlobalViewServer implements Runnable{
 	ZookeeperClient zkCli;
-	int timeInterval = 6000;
+	int timeInterval = 3000;
 	boolean running = true;
 
 	public GlobalViewServer(ZookeeperClient zkCli, int updateTimeInterval)
@@ -79,7 +79,11 @@ public class GlobalViewServer implements Runnable{
 
 	@Override
 	public void run() {
+		int i = 0;
+		running = true;
 		while(running){
+			i++;
+			System.out.println("Updater " + i);
 			try {
 				Thread.sleep(timeInterval);
 				updateServersGlobalViewZnode();
@@ -93,7 +97,6 @@ public class GlobalViewServer implements Runnable{
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-		
 		}	
 	}
 	// TODO Auto-generated method stub

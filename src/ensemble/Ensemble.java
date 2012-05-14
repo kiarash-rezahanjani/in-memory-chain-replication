@@ -31,7 +31,7 @@ public class Ensemble {
 	HashMap<String, Long> lastDeliveredMessage = new HashMap<String,Long>();//<clientId, msgId> last message acknowledged to client to delivered to next buffer server
 	HashMap<String, Long> lastPersistedMessage = new HashMap<String,Long>();//<clientId, msgId> last message persisted to client to delivered to next buffer server
 	HashMap<String, Identifier> clientFailed = new HashMap<String,Identifier>();
-
+	
 	final Configuration conf;
 
 	AbstractPersister persister;
