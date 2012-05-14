@@ -33,4 +33,10 @@ public interface Buffer {
 	 * @param id
 	 */
 	public void remove(Identifier id);
+	
+	/**
+	 * Remove all entries with bigger messageId(for the given client) contained in the Identifier.
+	 * @param lastAckedId : contains the cliend ID and messageID
+	 */
+	public void garbageCollect(Identifier lastAckedId);
 }

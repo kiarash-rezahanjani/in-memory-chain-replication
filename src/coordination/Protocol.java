@@ -51,7 +51,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 		try {
 			zkCli.createServerZnode(getInitialServerData());
 			//executor = Executors.newFixedThreadPool(2);
-			gvServer = new GlobalViewServer(zkCli, 8000);
+			//gvServer = new GlobalViewServer(zkCli, 4000);
 			startGlobalViewServer();
 		} catch (KeeperException e) {
 			// TODO Auto-generated catch block
@@ -210,7 +210,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 			rollBack("leaderStartsFormingEnsemble  lbk.getRequestedNodeList().size() < lbk.getEnsembleSize()-1");
 	}
 	 */
-	/*void checkForLeaderShip(){
+	public void checkForLeaderShip(){
 		serversGlobalView = zkCli.getServersGlobalView();
 		if(serversGlobalView==null)
 			return;
@@ -230,7 +230,8 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 				break;
 			}
 		}
-		if(myServers.size()>0)
+		System.out.println("cehc for leadship is called / Size: " + myServers.size() );
+		if(myServers.size()>=2)
 			leaderStartsFormingEnsemble(myServers);	
 	}
 
@@ -273,7 +274,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 		if(lbk.getRequestedNodeList().size() < lbk.getEnsembleSize()-1)
 			rollBack("leaderStartsFormingEnsemble  lbk.getRequestedNodeList().size() < lbk.getEnsembleSize()-1");
 	}
-	 */
+
 
 	public void leaderStartsFormingEnsemble(int replicationFactor){
 		if(status.get()!=ServerStatus.ALL_FUNCTIONAL_ACCEPT_REQUEST  
@@ -423,7 +424,8 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 			addStat();
 			EnsembleBean ensemble = (EnsembleBean) message.msgContent;	
 			List<InetSocketAddress> ensembleMembersBufferServerAddress = ensemble.getEnsembleBufferServerAddressList();	
-			boolean success = true;//callback //cdrHandle.followerConnectsEnsemble(ensembleMembers);
+			//boolean success = true;//callback //cdrHandle.followerConnectsEnsemble(ensembleMembers);
+			boolean success = ensembleCallBack.newEnsemble(ensembleMembersBufferServerAddress);
 			System.out.println("BufferServers  " + ensembleMembersBufferServerAddress + " me "+ conf.getProtocolPort());
 			if(success){	
 				fbk.setEnsembleMembers(ensemble.getEnsembleProtocolAddressList());	

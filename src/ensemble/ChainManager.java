@@ -49,7 +49,7 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 
 	Configuration conf;
 	List<InetSocketAddress> sortedChainSocketAddress;
-	public Ensemble ensemble;
+	public Ensemble ensemble = null;
 	BufferServer server;
 	BufferClient client;
 	List<Channel> unknownChannels = new ArrayList<Channel>();// not necessary
@@ -114,7 +114,10 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 	public void setEnsembleZnodePath(String path){
 		ensembleZnodePath = path;
 	}
-
+	
+	public void shutDownEnsemble(){
+		System.out.println("Shutdown ensemble.." + conf.getProtocolPort() + " Ensemble " + ensemble.getSortedChainSocketAddress());
+	}
 	//-------------------------------Messages From the Servers and Clients---AND--- ACTIONs Taken---------------------------------
 	@Override
 	public void serverReceivedMessage(MessageEvent e) {
@@ -211,8 +214,6 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 						future.getChannel().close();
 					}
 				}
-
-
 			});
 		}
 	}
@@ -273,47 +274,51 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 		}
 		public void run(){
 			running = true;
-			while(running)
-			try {
-				Thread.sleep(new Random().nextInt(4000)+3000);
-				if(ensemble == null)
-				coordinator.
-				if(ensembleZnodePath!=null){
+			System.out.println("ZkUpdate is running.." + conf.getProtocolPort() );
+			while(running){
+				try {
+					Thread.sleep(new Random().nextInt(4000)+3000);
 					Runtime.getRuntime().gc();
 					currentCapacityLeft = getcapacityLeft();
-
-					if(zkCli.exists(ensembleZnodePath)){
-						EnsembleData ensembleData = zkCli.getEnsembleData(ensembleZnodePath);
-						int minCapacity = 100;
-						for( Member member : ensembleData.getMembersList() ){
-							ServerData serverdata  = zkCli.getServerZnodeDataByProtocolSocketAddress(member.getSocketAddress());
-							if(serverdata!=null)
-								minCapacity = Math.min(minCapacity, serverdata.getCapacityLeft());
+					if(ensemble == null)
+						coordinator.checkForLeaderShip();
+					if(ensembleZnodePath!=null){
+						if(zkCli.exists(ensembleZnodePath)){
+							EnsembleData ensembleData = zkCli.getEnsembleData(ensembleZnodePath);
+							int minCapacity = 100;
+							for( Member member : ensembleData.getMembersList() ){
+								ServerData serverdata  = zkCli.getServerZnodeDataByProtocolSocketAddress(member.getSocketAddress());
+								if(serverdata!=null)
+									minCapacity = Math.min(minCapacity, serverdata.getCapacityLeft());
+							}
+							zkCli.updateEnsembleZnode(ensembleZnodePath, 
+									EnsembleData.newBuilder(ensembleData).setCapacityLeft(minCapacity).setStat(
+											minCapacity<20 ? EnsembleData.Status.REJECT_CONNECTION : EnsembleData.Status.ACCPT_CONNECTION).build());
 						}
-						zkCli.updateEnsembleZnode(ensembleZnodePath, 
-								EnsembleData.newBuilder(ensembleData).setCapacityLeft(minCapacity).setStat(
-										minCapacity<20 ? EnsembleData.Status.REJECT_CONNECTION : EnsembleData.Status.ACCPT_CONNECTION).build());
 					}
+					if(Math.abs(currentCapacityLeft-capacityLeft)>10){
+						zkCli.updateServerZnode(getServerData(currentCapacityLeft, currentCapacityLeft<20 ? Status.REJECT_ENSEMBLE_REQUEST : Status.ACCEPT_ENSEMBLE_REQUEST ));
+					}
+					capacityLeft = currentCapacityLeft;
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+					throw new RuntimeException();
+				} catch (KeeperException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (InvalidProtocolBufferException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
-				if(Math.abs(currentCapacityLeft-capacityLeft)>10){
-					zkCli.updateServerZnode(getServerData(currentCapacityLeft, currentCapacityLeft<20 ? Status.REJECT_ENSEMBLE_REQUEST : Status.ACCEPT_ENSEMBLE_REQUEST ));
-				}
-				capacityLeft = currentCapacityLeft;
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-				throw new RuntimeException();
-			} catch (KeeperException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (InvalidProtocolBufferException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				
 			}
+			System.out.println("ZkUpdate stopped.." + conf.getProtocolPort() );
 		}
 		private int getcapacityLeft() {
 			// TODO Auto-generated method stub
-			return (int) (Runtime.getRuntime().freeMemory()/Runtime.getRuntime().totalMemory()) * 100;
+			System.out.println(Runtime.getRuntime().freeMemory()  + "  ---  " + Runtime.getRuntime().totalMemory());
+			return (int) ((((double)Runtime.getRuntime().freeMemory())/Runtime.getRuntime().totalMemory()) * 100);
 		}
 
 		ServerData getServerData(int capacity, ServerData.Status status){

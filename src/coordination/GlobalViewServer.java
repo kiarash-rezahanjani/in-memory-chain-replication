@@ -83,7 +83,7 @@ public class GlobalViewServer implements Runnable{
 		running = true;
 		while(running){
 			i++;
-			System.out.println("Updater " + i);
+			System.out.println("GV Updater: " + i);
 			try {
 				Thread.sleep(timeInterval);
 				updateServersGlobalViewZnode();

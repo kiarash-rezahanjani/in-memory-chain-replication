@@ -140,9 +140,9 @@ public class HashedBuffer implements  Buffer{
 			while(it.hasNext()){
 				Identifier id = it.next();
 				if(id.getMessageId() > lastAckedId.getMessageId())
-					data.remove(id);
+					remove(id);
 			}
-			clientMessages.get(lastAckedId.getClientId()).clear();// remove all the ids belong to t he client but
+			//clientMessages.get(lastAckedId.getClientId()).clear();// remove all the ids belong to t he client but
 			failedClientGarbageCollectionStatus.put(lastAckedId.getClientId(), Boolean.valueOf(true));
 			report("gc done!");
 

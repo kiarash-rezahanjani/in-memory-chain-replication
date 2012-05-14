@@ -94,8 +94,8 @@ public class ZookeeperClient implements Closeable{
 		Stat stat=null;
 		try {
 			stat = zk.exists(serversGlobalViewPath, true);
-			if(stat!=null)
-				System.out.println("Set Watch " + config.getProtocolPort());
+	//		if(stat!=null)
+			//	System.out.println("Set Watch " + config.getProtocolPort());
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -365,15 +365,15 @@ public class ZookeeperClient implements Closeable{
 	}
 
 	void updateServersGlobalViewZnode(ServersGlobalView data) throws KeeperException, InterruptedException{
-		/*		Stat s = zk.exists(serversGlobalViewPath, true);
+				Stat s = zk.exists(serversGlobalViewPath, true);
 		if(s==null)
 			zk.create(serversGlobalViewPath, data.toByteArray(), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
 		else 
 			zk.setData(serversGlobalViewPath, data.toByteArray(), -1);	
-		 */		
-		Stat s = zk.exists(serversGlobalViewPath, false);
+		 	
+		/*		Stat s = zk.exists(serversGlobalViewPath, false);
 		if(s!=null)
-			zk.setData(serversGlobalViewPath, data.toByteArray(), -1);	
+			zk.setData(serversGlobalViewPath, data.toByteArray(), -1);	*/	
 	}
 
 	void deleteGlobalViewZnode(){

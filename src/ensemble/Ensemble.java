@@ -118,6 +118,7 @@ public class Ensemble {
 			headDbClients.get(lastAck.getClientId()).close();
 */		
 		print("Last Acked ID: " + lastAck);
+		buffer.garbageCollect(lastAck);
 	}
 
 	public void releaseResourcesOfFailedClient(String clientId){
@@ -280,6 +281,9 @@ public class Ensemble {
 		}
 
 	public void removeClient(){
-
+		
+	}
+	public void shutdownEnsemble(){
+		
 	}
 }
