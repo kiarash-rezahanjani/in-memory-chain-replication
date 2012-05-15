@@ -1,6 +1,5 @@
 package JustTesting;
-import org.hyperic.sigar.Mem;
-import org.hyperic.sigar.Sigar;
+
 
 public class memory {
 

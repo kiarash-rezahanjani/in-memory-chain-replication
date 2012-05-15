@@ -43,7 +43,7 @@ import client.Log.LogEntry.Type;
 
 import streaming.BufferClient;
 import streaming.BufferServer;
-import org.hyperic.sigar.Mem;
+
 
 public class ChainManager implements EnsembleManager, ClientServerCallback, Watcher{
 
@@ -74,6 +74,9 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 
 	//============================================================================================================================
 	public boolean newEnsemble(List<InetSocketAddress> sortedBufferServerAddress) {
+		//for testing at the moment only one ensemble is allowed
+		if(ensemble!=null)
+			return false;
 		//Zookeeper sets watch on the servers
 		try{
 			ensemble = new Ensemble(conf,sortedBufferServerAddress);
@@ -114,7 +117,7 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 	public void setEnsembleZnodePath(String path){
 		ensembleZnodePath = path;
 	}
-	
+
 	public void shutDownEnsemble(){
 		System.out.println("Shutdown ensemble.." + conf.getProtocolPort() + " Ensemble " + ensemble.getSortedChainSocketAddress());
 	}
@@ -280,26 +283,29 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 					Thread.sleep(new Random().nextInt(conf.getServerInfoIntervalDeviation())+conf.getServerInfoInterval());
 					Runtime.getRuntime().gc();
 					currentCapacityLeft = getcapacityLeft();
+					if(Math.abs(currentCapacityLeft-capacityLeft) > conf.getServerUpdateThreshold()){
+						zkCli.updateServerZnode(getServerData(currentCapacityLeft, currentCapacityLeft<conf.getSaturationPoint() ? Status.REJECT_ENSEMBLE_REQUEST : Status.ACCEPT_ENSEMBLE_REQUEST ));
+						capacityLeft = currentCapacityLeft;
+					}
 					if(ensemble == null)
 						coordinator.checkForLeaderShip();
-					if(ensembleZnodePath!=null){
-						if(zkCli.exists(ensembleZnodePath)){
-							EnsembleData ensembleData = zkCli.getEnsembleData(ensembleZnodePath);
-							int minCapacity = 100;
-							for( Member member : ensembleData.getMembersList() ){
-								ServerData serverdata  = zkCli.getServerZnodeDataByProtocolSocketAddress(member.getSocketAddress());
-								if(serverdata!=null)
-									minCapacity = Math.min(minCapacity, serverdata.getCapacityLeft());
+					else
+						if(ensembleZnodePath!=null){
+							if(zkCli.exists(ensembleZnodePath)){
+								EnsembleData ensembleData = zkCli.getEnsembleData(ensembleZnodePath);
+								int minCapacity = 100;
+								for( Member member : ensembleData.getMembersList() ){
+									ServerData serverdata  = zkCli.getServerZnodeDataByProtocolSocketAddress(member.getSocketAddress());
+									if(serverdata!=null)
+										minCapacity = Math.min(minCapacity, serverdata.getCapacityLeft());
+								}
+								zkCli.updateEnsembleZnode(ensembleZnodePath, 
+										EnsembleData.newBuilder(ensembleData).setCapacityLeft(minCapacity).setStat(
+												minCapacity<conf.getSaturationPoint() ? EnsembleData.Status.REJECT_CONNECTION : EnsembleData.Status.ACCPT_CONNECTION).build());
 							}
-							zkCli.updateEnsembleZnode(ensembleZnodePath, 
-									EnsembleData.newBuilder(ensembleData).setCapacityLeft(minCapacity).setStat(
-											minCapacity<20 ? EnsembleData.Status.REJECT_CONNECTION : EnsembleData.Status.ACCPT_CONNECTION).build());
 						}
-					}
-					if(Math.abs(currentCapacityLeft-capacityLeft)>10){
-						zkCli.updateServerZnode(getServerData(currentCapacityLeft, currentCapacityLeft<20 ? Status.REJECT_ENSEMBLE_REQUEST : Status.ACCEPT_ENSEMBLE_REQUEST ));
-					}
-					capacityLeft = currentCapacityLeft;
+
+					
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -311,16 +317,16 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				
+
 			}
 			System.out.println("ZkUpdate stopped.." + conf.getProtocolPort() );
 		}
-		
+
 		private int getcapacityLeft() {
 			// TODO Auto-generated method stub
 			System.out.println(Runtime.getRuntime().freeMemory()  + "  ---  " + Runtime.getRuntime().totalMemory());
-			return new Random().nextInt(100);
-			//return (int) ((((double)Runtime.getRuntime().freeMemory())/Runtime.getRuntime().totalMemory()) * 100);
+		//	return new Random().nextInt(100);
+			return (int) ((((double)Runtime.getRuntime().freeMemory())/Runtime.getRuntime().totalMemory()) * 100);
 		}
 
 		ServerData getServerData(int capacity, ServerData.Status status){

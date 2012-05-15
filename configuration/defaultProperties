@@ -22,3 +22,9 @@ gvInfoInterval = 6000
 //server + ensemble + gc + check for leadership interval 
 serverInfoInterval = 4000
 serverInfoIntervalDeviation = 3000
+
+//serverUpdateThreshold indicates the minimum change required in the left capacity to update the server status and capacity
+serverUpdateThreshold = 5
+
+//20(percent) means 80 of resources and consumed and server or ensemble should not accept new connections(clients or ensemble request)  
+saturationPoint = 20
