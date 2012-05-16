@@ -12,6 +12,7 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
@@ -37,6 +38,8 @@ import org.apache.zookeeper.Watcher.Event;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.data.Stat;
 
+import coordination.Znode.EnsembleData;
+
 import client.Log.LogEntry;
 import client.Log.LogEntry.Identifier;
 import client.Log.LogEntry.Type;
@@ -45,6 +48,7 @@ import streaming.BufferClient;
 import streaming.BufferServer;
 import utility.Configuration;
 import utility.LatencyEvaluator;
+import utility.NetworkUtil;
 import ensemble.ClientServerCallback;
 import ensemble.Ensemble;
 
@@ -208,14 +212,14 @@ public class DBClient implements Watcher{
 		loadGeneratorThread.setEvaluator(latencyEvaluator);
 		loadGeneratorThread.startLoad();
 		loadGeneratorThread.start();
-		
+
 	}
-	
+
 	void flushBuffer(){
 		System.out.println("ReSending size..." +  bufferedMessage.size() );
 		if(bufferedMessage.size()==0)
 			return;
-		
+
 		//sort the messages
 		Iterator it = bufferedMessage.keySet().iterator();
 		List<Identifier> ids = new ArrayList<Identifier>();
@@ -228,8 +232,8 @@ public class DBClient implements Watcher{
 				ids.add(id);
 			}
 		}
-		
-		
+
+
 		for(int i = 0; i< ids.size(); i++){
 			System.out.println("sending....." +  ids.get(i) );
 			headServer.write(bufferedMessage.get(ids.get(i))).awaitUninterruptibly();
@@ -332,7 +336,67 @@ public class DBClient implements Watcher{
 
 	}
 
-	int i = 0; //just for testing
+	InetSocketAddress getWatchedEnsemble(){
+		ensembleServers.clear();
+		//contact zookeeper and get an ensemble
+		//determine the head and tail
+		HashMap<InetSocketAddress, ServerRole> ensembleServers = new HashMap<InetSocketAddress, ServerRole>();
+
+		List<String> ensembles = zk.getChildren(conf.getZkNameSpace()+conf.getZkEnsemblesRoot(), false);
+		EnsembleData ensemble = null;
+		int capacityLeft = 0;
+		int checkedEnsembles = 0;
+		for(String path : ensembles){
+			EnsembleData temp;
+			try{temp = EnsembleData.parseFrom( zk.getData(conf.getZkNameSpace()+conf.getZkEnsemblesRoot()+"/"+path, false, null) );}catch(KeeperException e){continue;}
+			if(temp.getStat()==EnsembleData.Status.ACCPT_CONNECTION && temp.getCapacityLeft() > capacityLeft){
+				ensemble = temp;
+				capacityLeft = ensemble.getCapacityLeft();
+				checkedEnsembles++;
+			}
+			if(checkedEnsembles>=10){
+				break;
+			}
+		}
+		if(checkedEnsembles <=0 )
+			return null;
+		else{
+			int headIndex = new Random().nextInt(ensemble.getMembersCount()) ;
+			ServerRole role;
+			for(int i = headIndex; i<headIndex+ensemble.getMembersCount(); i++){
+				if(i==headIndex)
+					role= ServerRole.head;
+				else
+					if(i==(headIndex+ensemble.getMembersCount()-1)%ensemble.getMembersCount())
+						role = ServerRole.tail;
+					else
+						role = ServerRole.middle;
+				ensembleServers.put( NetworkUtil.parseInetSocketAddress( ensemble.getMembers(i%ensemble.getMembersCount()).getSocketAddress() ), role);
+			}
+		}
+
+		//set watched on the servers and set the head server
+		Iterator it = ensembleServers.entrySet().iterator();
+		InetSocketAddress head = null;
+		Stat stat = null;
+		while(it.hasNext()){
+			Map.Entry<InetSocketAddress, ServerRole> entry =  (Map.Entry<InetSocketAddress, ServerRole>) it.next();
+			stat = setFailureDetector(getHostColonPort(entry.getKey().toString()));
+			if(stat==null)
+				try {
+					throw new Exception("Hey one of the servers in down buddy.");
+				} catch (Exception e) {
+					e.printStackTrace();
+					System.exit(-1);
+				}
+			if(entry.getValue()==ServerRole.head)
+				head = entry.getKey();
+		}
+
+		return head;
+	}
+	/*		
+		int i = 0; //just for testing
 	InetSocketAddress getWatchedEnsemble(){
 		i++;
 		ensembleServers.clear();
@@ -379,7 +443,7 @@ public class DBClient implements Watcher{
 
 		return head;
 	}
-
+	 */
 
 	//copied from zookeeperclient class
 	public String getHostColonPort(String socketAddress)
