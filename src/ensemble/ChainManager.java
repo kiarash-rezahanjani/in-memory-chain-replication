@@ -319,7 +319,7 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 				}
 
 			}
-			System.out.println("ZkUpdate stopped.." + conf.getProtocolPort() );
+		//	System.out.println("ZkUpdate stopped.." + conf.getProtocolPort() );
 		}
 
 		private int getcapacityLeft() {

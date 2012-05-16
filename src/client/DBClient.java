@@ -38,6 +38,8 @@ import org.apache.zookeeper.Watcher.Event;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.data.Stat;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+
 import coordination.Znode.EnsembleData;
 
 import client.Log.LogEntry;
@@ -249,9 +251,8 @@ public class DBClient implements Watcher{
 		//find ensemble and set watch on the servers
 		//connect to the ensemble : jus find the head and connect
 		//resume the service
-		System.out.println("EnsembleFailure: Stopping... " );
+		System.out.println("EnsembleFailure: Stopping logging... " );
 		//stop();
-
 
 		//		loadGeneratorThread.stopRunning();
 
@@ -261,7 +262,7 @@ public class DBClient implements Watcher{
 		tailServer.close();
 		headServer=null;
 		tailServer=null;
-		System.out.print("Running...." );
+		System.out.print("Running logging...." );
 		run();
 	}
 
@@ -302,14 +303,15 @@ public class DBClient implements Watcher{
 				System.out.print("strange failure messsage received at client.");
 				System.exit(-1);
 			}
-			System.out.print("Its a server. " );
+			System.out.print("Client: An EnsembleFailed.... " );
 			//String nodeName =  path.substring( path.substring(path.indexOf(conf.getZkServersRoot())+1).indexOf("/")+1 );
 			Iterator it = ensembleServers.entrySet().iterator();
 			while(it.hasNext()){
 				Map.Entry<InetSocketAddress, ServerRole> entry = (Map.Entry<InetSocketAddress, ServerRole>) it.next();
 				String serverZnodePath = conf.getZkNameSpace() + conf.getZkServersRoot() + "/" + getHostColonPort(entry.getKey().toString());
 				if(serverZnodePath.equals(path)){
-					ensembleFailure(entry.getValue());
+					System.out.print("Client: Opps its my ensemble.... " );
+					ensembleFailure(entry.getValue());	
 				}
 			}
 		}
@@ -342,13 +344,34 @@ public class DBClient implements Watcher{
 		//determine the head and tail
 		HashMap<InetSocketAddress, ServerRole> ensembleServers = new HashMap<InetSocketAddress, ServerRole>();
 
-		List<String> ensembles = zk.getChildren(conf.getZkNameSpace()+conf.getZkEnsemblesRoot(), false);
+		List<String> ensembles;
+		try {
+			ensembles = zk.getChildren(conf.getZkNameSpace()+conf.getZkEnsemblesRoot(), false);
+		} catch (KeeperException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+			return null;
+		} catch (InterruptedException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+			return null;
+		}
 		EnsembleData ensemble = null;
 		int capacityLeft = 0;
 		int checkedEnsembles = 0;
 		for(String path : ensembles){
 			EnsembleData temp;
-			try{temp = EnsembleData.parseFrom( zk.getData(conf.getZkNameSpace()+conf.getZkEnsemblesRoot()+"/"+path, false, null) );}catch(KeeperException e){continue;}
+			try{
+				temp = EnsembleData.parseFrom( zk.getData(conf.getZkNameSpace()+conf.getZkEnsemblesRoot()+"/"+path, false, null) );
+			}catch(KeeperException e){continue;} catch (InvalidProtocolBufferException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				return null;
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				return null;
+			}
 			if(temp.getStat()==EnsembleData.Status.ACCPT_CONNECTION && temp.getCapacityLeft() > capacityLeft){
 				ensemble = temp;
 				capacityLeft = ensemble.getCapacityLeft();
@@ -358,12 +381,13 @@ public class DBClient implements Watcher{
 				break;
 			}
 		}
+		
 		if(checkedEnsembles <=0 )
 			return null;
 		else{
 			int headIndex = new Random().nextInt(ensemble.getMembersCount()) ;
 			ServerRole role;
-			for(int i = headIndex; i<headIndex+ensemble.getMembersCount(); i++){
+			for(int i = headIndex; i < headIndex+ensemble.getMembersCount(); i++){
 				if(i==headIndex)
 					role= ServerRole.head;
 				else
