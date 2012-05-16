@@ -230,7 +230,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 				break;
 			}
 		}
-		System.out.println("Check for leadship is called / Size: " + myServers.size() );
+		System.out.println("Check for leadship is called / Size: " + myServers.size() +  myServers);
 		if(myServers.size()>=2)
 			leaderStartsFormingEnsemble(myServers);	
 	}

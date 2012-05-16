@@ -1,2 +1,2 @@
-protocol_port = 1819
-buffer_server_port = 1919
+protocol_port = 1111
+buffer_server_port = 11222

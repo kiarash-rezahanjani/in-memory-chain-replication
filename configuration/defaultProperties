@@ -17,11 +17,11 @@ zkEnsemblesRoot = /ensembles
 zkServersGlobalViewRoot = /serversglobalview
 
 //global view update interval in millisecond
-gvInfoInterval = 6000
+gvInfoInterval = 10000
 
 //server + ensemble + gc + check for leadership interval 
-serverInfoInterval = 4000
-serverInfoIntervalDeviation = 3000
+serverInfoInterval = 2000
+serverInfoIntervalDeviation = 2000
 
 //serverUpdateThreshold indicates the minimum change required in the left capacity to update the server status and capacity
 serverUpdateThreshold = 5
