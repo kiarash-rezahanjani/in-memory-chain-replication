@@ -113,6 +113,24 @@ public class HashedBuffer implements  Buffer{
 		}
 		report("removed " + id.getMessageId());
 	}
+	
+	/**
+	 * this method remove the elements from the read queue and add to persist queue
+	 * this method should be called only when the ensemble is broken so that all the buffered logs will be persisted.
+	 * 
+	 */
+	public void fillPersistQueue() {
+		// TODO Auto-generated method stub
+		new FillPersistQueue().start();
+		
+	}
+	class FillPersistQueue extends Thread{
+		public void run(){
+			while(readQueue.size()>0){
+				persistQueue.offer( readQueue.poll() );
+			}
+		}
+	}
 
 	public void garbageCollect(Identifier lastAckedId){
 		failedClientGarbageCollectionStatus.put(lastAckedId.getClientId(), Boolean.valueOf(false));

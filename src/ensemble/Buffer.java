@@ -39,4 +39,11 @@ public interface Buffer {
 	 * @param lastAckedId : contains the cliend ID and messageID
 	 */
 	public void garbageCollect(Identifier lastAckedId);
+	
+	/**
+	 * this method remove the elements from the read queue and add to persist queue
+	 * this method should be called only when the ensemble is broken so that all the buffered logs will be persisted.
+	 * 
+	 */
+	public void fillPersistQueue();
 }

@@ -125,11 +125,15 @@ public class Ensemble {
 	}
 	
 	public void clientFailed(String node){
-		//00000000000000
+		//persist all the logs 
+		//clean all the data structures
 	}
 	
 	public void ensembleFailed(){
 		//spawn a thread to take care of every thing
+		buffer.fillPersistQueue();
+		//clean all the data structure
+		//signal to chain manager to remove he ensemble from zk and its data structres
 	}
 
 	public void releaseResourcesOfFailedClient(String clientId){
