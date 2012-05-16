@@ -655,7 +655,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 
 	//------------------------------------------------------
 	public void failureOf(String strSocketAddress){
-		System.out.println("Server Failure." + strSocketAddress);
+		System.out.println("Protocol. Server Failure." + strSocketAddress);
 		if(isLeader()){
 			if(lbk.contains(NetworkUtil.parseInetSocketAddress(strSocketAddress)))
 				rollBack("one of the contacted server was failed during operation");
@@ -710,10 +710,8 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 			if(path.contains(conf.getZkServersRoot()+"/"))
 				failureOf(path.replace(conf.getZkEnsemblesRoot()+conf.getZkServersRoot()+"/", ""));//serverFailure(path);
 
-			//if the failed node is a client
-			if(path.contains(conf.getZkClientRoot()+"/"))
-				;//clientFailure(path);
-			//if the failed node is a client
+
+			//if the failed node is a global view updater
 			if(path.contains(conf.getZkServersGlobalViewRoot())){
 				if(globalViewUpdater){
 					globalViewUpdater = false;

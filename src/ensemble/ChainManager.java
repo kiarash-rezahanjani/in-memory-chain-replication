@@ -114,6 +114,11 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 		}
 	}
 
+
+	/**
+	 * This method should be called to set the ensemble path only if the server is the leader of the ensemble
+	 * If the path is set the server consider itself as the leader and updates the ensemble data
+	 */
 	public void setEnsembleZnodePath(String path){
 		ensembleZnodePath = path;
 	}
@@ -156,7 +161,7 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 								System.out.println("Tail CLient " + msg.getEntryId().getClientId() + " added to " + conf.getBufferServerSocketAddress());
 							}else
 								if(msg.getMessageType()==Type.LAST_ACK_SENT_TO_FAILED_CLIENT){
-									ensemble.clientFailed(msg.getEntryId());
+									ensemble.clientFailedLastAck(msg.getEntryId());
 								}
 
 				//replace with a switch
@@ -232,16 +237,28 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 	public void process(WatchedEvent event) {
 		String path = event.getPath();
 		if (event.getType()== Event.EventType.NodeDeleted){
+			
 			//if the failed node is a server
-			if(path.contains(conf.getZkServersRoot()))
-				;//CALLBACKTO+ENSEMBLEAND+PROTOCOL.serverFailure(path);
-
+			if(path.contains(conf.getZkServersRoot()+"/")){
+			//	;//CALLBACKTO+ENSEMBLEAND+PROTOCOL.serverFailure(path);
+				String node = path.replace(conf.getZkNameSpace()+conf.getZkServersRoot()+"/", "");
+				if(ensemble.getMembers().contains( NetworkUtil.parseInetSocketAddress(node))){
+					ensemble.ensembleFailed();
+					System.out.println("Chain manager. called ensembleFailed().");
+				}
+				coordinator.process(event);
+			}
+			
 			//if the failed node is a client
-			if(path.contains(conf.getZkClientRoot()))
+			if(path.contains(conf.getZkClientRoot())){
 				;//CALLBACKTOENSEMBLE.clientFailure(path);
-
-			if(path.contains(conf.getZkServersGlobalViewRoot()))
+				String node = path.replace(conf.getZkNameSpace()+conf.getZkClientRoot()+"/", "");
+				ensemble.clientFailed(node);
+			}
+			if(path.contains(conf.getZkServersGlobalViewRoot())){
 				;//CALLBACK+ENSEMBLE.globalFailure(path);
+				coordinator.process(event);
+			}
 		}
 
 		if (event.getType() == Event.EventType.None) {

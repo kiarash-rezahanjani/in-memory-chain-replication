@@ -53,6 +53,9 @@ public class Ensemble {
 		return tailDbClients;
 	}
 
+	public List<InetSocketAddress> getMembers(){
+		return sortedChainSocketAddress;
+	}
 	public Ensemble(Configuration conf, List<InetSocketAddress> sortedChainSocketAddress) throws Exception{
 		this.conf=conf;
 		this.sortedChainSocketAddress = sortedChainSocketAddress;
@@ -103,7 +106,7 @@ public class Ensemble {
 		}
 	}
 
-	public void clientFailed(Identifier lastAck){
+	public void clientFailedLastAck(Identifier lastAck){
 		//remove the head or tail
 		//send the last ack to the servers
 		//garbage collect
@@ -119,6 +122,14 @@ public class Ensemble {
 */		
 		print("Last Acked ID: " + lastAck);
 		buffer.garbageCollect(lastAck);
+	}
+	
+	public void clientFailed(String node){
+		//00000000000000
+	}
+	
+	public void ensembleFailed(){
+		//spawn a thread to take care of every thing
 	}
 
 	public void releaseResourcesOfFailedClient(String clientId){
