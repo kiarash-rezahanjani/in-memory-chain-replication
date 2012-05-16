@@ -52,10 +52,10 @@ public class Ensemble {
 	public HashMap<String, Channel> getTailDbClients() {
 		return tailDbClients;
 	}
-
 	public List<InetSocketAddress> getMembers(){
 		return sortedChainSocketAddress;
 	}
+	
 	public Ensemble(Configuration conf, List<InetSocketAddress> sortedChainSocketAddress) throws Exception{
 		this.conf=conf;
 		this.sortedChainSocketAddress = sortedChainSocketAddress;
@@ -131,6 +131,7 @@ public class Ensemble {
 	
 	public void ensembleFailed(){
 		//spawn a thread to take care of every thing
+		bufferReader.stopRunning();
 		buffer.fillPersistQueue();
 		//clean all the data structure
 		//signal to chain manager to remove he ensemble from zk and its data structres
