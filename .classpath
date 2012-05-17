@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry including="JustTesting/|client/|coordination/|ensemble/|persistence/|streaming/|utility/" kind="src" path="src"/>
+	<classpathentry kind="src" path="proto"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="lib" path="/home/kiarash/git/zookeeper/build/zookeeper-3.5.0.jar"/>
 	<classpathentry kind="lib" path="/home/kiarash/git/zookeeper/build/lib/commons-cli-1.2.jar"/>
@@ -13,5 +14,5 @@
 	<classpathentry kind="lib" path="/opt/protobuf-2.3.0/java/target/protobuf-java-2.3.0.jar"/>
 	<classpathentry kind="lib" path="/home/kiarash/netty-3.2.7.Final/jar/netty-3.2.7.Final.jar"/>
 	<classpathentry kind="lib" path="/home/kiarash/netty-3.2.7.Final/jar/netty-3.2.7.Final-sources.jar"/>
-	<classpathentry kind="output" path="proto"/>
+	<classpathentry kind="output" path="bin"/>
 </classpath>

@@ -1,5 +1,5 @@
-protocol_port = 8888
-buffer_server_port = 8111
+protocol_port = 1777
+buffer_server_port = 2777
 
 //Db client
 DB_CLIENT_ID = 3

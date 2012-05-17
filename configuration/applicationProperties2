@@ -1,5 +1,5 @@
-protocol_port = 7777
-buffer_server_port = 7111
+protocol_port = 1666
+buffer_server_port = 2666
 buffer_client_port = 0
 
 //Db client
