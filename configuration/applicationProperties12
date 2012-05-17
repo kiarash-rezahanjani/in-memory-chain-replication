@@ -1,0 +1,6 @@
+protocol_port = 1555
+buffer_server_port = 2555
+
+
+//Db client
+DB_CLIENT_ID = 11
