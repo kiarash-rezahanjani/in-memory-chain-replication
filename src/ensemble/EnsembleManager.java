@@ -3,7 +3,9 @@ package ensemble;
 import java.net.InetSocketAddress;
 import java.util.List;
 
+import coordination.Protocol.EnsembleBean;
+
 public interface EnsembleManager {
-	public boolean newEnsemble(List<InetSocketAddress> bufferServerAddress) ;
-	public void setEnsembleZnodePath(String path);
+	public boolean newEnsemble(EnsembleBean ensembleBean) ;
+	public void setEnsembleZnodePath(String path, boolean isLeader);
 }

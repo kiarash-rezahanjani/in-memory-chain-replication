@@ -23,6 +23,7 @@ import utility.Configuration;
 public class Ensemble {
 	final Buffer buffer;
 	List<InetSocketAddress> sortedChainSocketAddress;
+	List<InetSocketAddress> sortedProtocolSocketAddress;
 	Channel successorChannel;//to send logs
 	Channel predecessorChannel;//to send remove message
 	List<Channel> peersChannel = new ArrayList<Channel>();//contains channels connecting to all members of the ensemble including itself, use to broadcast the messages
@@ -52,13 +53,14 @@ public class Ensemble {
 	public HashMap<String, Channel> getTailDbClients() {
 		return tailDbClients;
 	}
-	public List<InetSocketAddress> getMembers(){
+	public List<InetSocketAddress> getMembersBufferServerAddress(){
 		return sortedChainSocketAddress;
 	}
 	
-	public Ensemble(Configuration conf, List<InetSocketAddress> sortedChainSocketAddress) throws Exception{
+	public Ensemble(Configuration conf, List<InetSocketAddress> sortedChainSocketAddress, List<InetSocketAddress>  sortedProtocolSocketAddress) throws Exception{
 		this.conf=conf;
 		this.sortedChainSocketAddress = sortedChainSocketAddress;
+		this.sortedProtocolSocketAddress = sortedProtocolSocketAddress;
 		if(sortedChainSocketAddress.size()<2)
 			throw new Exception("obj.chain Ensemble size < 2 ");
 		//	buffer = new NaiveCircularBuffer(conf.getEnsembleBufferSize(),tailDbClients.keySet());
@@ -176,10 +178,15 @@ public class Ensemble {
 	public List<InetSocketAddress> getSortedChainSocketAddress() {
 		return sortedChainSocketAddress;
 	}
+	public List<InetSocketAddress> getMembersProtocolSocketAddress() {
+		return sortedProtocolSocketAddress;
+	}
 	public void setSortedChainSocketAddress(
 			List<InetSocketAddress> sortedChainSocketAddress) {
 		this.sortedChainSocketAddress = sortedChainSocketAddress;
 	}
+	
+	
 	public void setSuccessor(Channel successor) {
 		this.successorChannel = successor;
 	}

@@ -27,7 +27,7 @@ public class ReplicationServer {
 		ChainManager cm=null;
 		try {
 			cm = new ChainManager(new Configuration(args[0]));
-			cm.newEnsemble(addresses);
+	//		cm.newEnsemble(addresses);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

@@ -35,7 +35,7 @@ public class ChainManagerThread extends Thread{
 			e1.printStackTrace();
 		}
 		try {
-			cm.newEnsemble(addresses);
+	//		cm.newEnsemble(addresses);
 		} catch (Exception e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();

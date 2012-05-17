@@ -334,7 +334,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 				ensembleBean.setEnsembleBufferServerAddressList(bufferServerAddressList);
 				ensembleBean.setEnsembleProtocolAddressList(protocolAddressList);
 				lbk.setEnsembleMembers(protocolAddressList );
-				boolean connected = ensembleCallBack.newEnsemble(bufferServerAddressList);
+				boolean connected = ensembleCallBack.newEnsemble(ensembleBean);
 				if(!connected)
 					rollBack("Leader failed to connect to the followers.");
 				else
@@ -369,7 +369,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 				}
 				System.out.println("CALLBACK.leaderStartsService(ensemblePath);");
 				//CALLBACK.leaderStartsService(ensemblePath);//maybe its not necessary
-				ensembleCallBack.setEnsembleZnodePath(ensemblePath);
+				ensembleCallBack.setEnsembleZnodePath(ensemblePath,true);
 
 				addStat();
 				status.set(ServerStatus.ALL_FUNCTIONAL_ACCEPT_REQUEST);
@@ -419,7 +419,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 			EnsembleBean ensemble = (EnsembleBean) message.msgContent;	
 			List<InetSocketAddress> ensembleMembersBufferServerAddress = ensemble.getEnsembleBufferServerAddressList();	
 			//boolean success = true;//callback //cdrHandle.followerConnectsEnsemble(ensembleMembers);
-			boolean success = ensembleCallBack.newEnsemble(ensembleMembersBufferServerAddress);
+			boolean success = ensembleCallBack.newEnsemble(ensemble);
 			System.out.println("BufferServers  " + ensembleMembersBufferServerAddress + " me "+ conf.getProtocolPort());
 			if(success){	
 				fbk.setEnsembleMembers(ensemble.getEnsembleProtocolAddressList());	
@@ -443,6 +443,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 				System.exit(-1);
 			}
 			fbk.setEnsemblePath(ensemblePath);
+			ensembleCallBack.setEnsembleZnodePath(ensemblePath,false);
 			System.out.println("CALLBACK.followerStartsService(ensemblePath); Path: " + ensemblePath);
 			//CALLBACK.followerStartsService(ensemblePath);// we dont need this as they are alrady ready for the service
 			status.set(ServerStatus.ALL_FUNCTIONAL_ACCEPT_REQUEST);// need to check if there is enough capacity left
@@ -578,6 +579,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 				serverData = zkCli.getServerZnodeDataByProtocolSocketAddress(ensembleMember);
 				EnsembleData.Member.Builder member = EnsembleData.Member.newBuilder();
 				member.setSocketAddress(ensembleMember.toString());
+				member.setBufferServerSocketAddress(serverData.getBufferServerSocketAddress());
 				ensembleData.addMembers(member);
 
 				if(serverData.getCapacityLeft() < minCapacity)

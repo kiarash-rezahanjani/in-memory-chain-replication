@@ -86,12 +86,12 @@ public class DBClient implements Watcher{
 					bufferedMessage.remove(msg.getEntryId());
 					semaphore.release();
 					latencyEvaluator.received(msg.getEntryId());
-					System.out.println("Ack of " + msg.getEntryId().getMessageId()  + " loadG status: "+  loadGeneratorThread.isAlive() + loadGeneratorThread.isInterrupted());
+				//	System.out.println("Ack of " + msg.getEntryId().getMessageId()  + " loadG status: "+  loadGeneratorThread.isAlive() + loadGeneratorThread.isInterrupted());
 					//receivedMessages.add(msg.getEntryId());
 					if(msg.getEntryId().getMessageId()%1000 ==999)
 						System.out.println("Acked: " + msg.getEntryId().getMessageId());
 
-					if(msg.getEntryId().getMessageId()==10000){
+					if(msg.getEntryId().getMessageId()==100000){
 						loadGeneratorThread.stopLoad();
 						latencyEvaluator.report();
 						close();
@@ -100,7 +100,7 @@ public class DBClient implements Watcher{
 				}
 				if(msg.getMessageType()==Type.CONNECTION_TAIL_TO_DB_CLIENT){
 					tailServer = e.getChannel();
-					System.out.println("Ready to stream." + msg.getClientSocketAddress() );
+					System.out.println("Ready to stream. Tail:" + msg.getClientSocketAddress() );
 					return;
 				}
 			}
@@ -163,7 +163,7 @@ public class DBClient implements Watcher{
 		if(zk==null){
 			try {
 				zk = new ZooKeeper(conf.getZkConnectionString(), conf.getZkSessionTimeOut(), this);
-				System.out.println("connectin to zk...");
+				System.out.println("connecting to zk...");
 				createRoot(conf.getZkNameSpace());
 				createRoot(conf.getZkNameSpace()+conf.getZkClientRoot());
 
@@ -202,11 +202,12 @@ public class DBClient implements Watcher{
 				if(headServer==null || !headServer.isConnected())
 					headServer = client.connectClientToServer(headSocketAddress);
 				Thread.sleep(connRetry);
-
+				Thread.sleep(4000);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 		}
+		
 		System.out.println("Head Channel " + headServer);
 		System.out.println("Tail Channel " + tailServer);
 		flushBuffer();
@@ -309,6 +310,7 @@ public class DBClient implements Watcher{
 			while(it.hasNext()){
 				Map.Entry<InetSocketAddress, ServerRole> entry = (Map.Entry<InetSocketAddress, ServerRole>) it.next();
 				String serverZnodePath = conf.getZkNameSpace() + conf.getZkServersRoot() + "/" + getHostColonPort(entry.getKey().toString());
+				System.out.print("Compare.." +  serverZnodePath);
 				if(serverZnodePath.equals(path)){
 					System.out.print("Client: Opps its my ensemble.... " );
 					ensembleFailure(entry.getValue());	
@@ -342,8 +344,8 @@ public class DBClient implements Watcher{
 		ensembleServers.clear();
 		//contact zookeeper and get an ensemble
 		//determine the head and tail
-		HashMap<InetSocketAddress, ServerRole> ensembleServers = new HashMap<InetSocketAddress, ServerRole>();
-
+		//HashMap<InetSocketAddress, ServerRole> ensembleServers = new HashMap<InetSocketAddress, ServerRole>();
+		InetSocketAddress head = null;
 		List<String> ensembles;
 		try {
 			ensembles = zk.getChildren(conf.getZkNameSpace()+conf.getZkEnsemblesRoot(), false);
@@ -387,21 +389,24 @@ public class DBClient implements Watcher{
 		else{
 			int headIndex = new Random().nextInt(ensemble.getMembersCount()) ;
 			ServerRole role;
-			for(int i = headIndex; i < headIndex+ensemble.getMembersCount(); i++){
-				if(i==headIndex)
+			for(int i = headIndex; i < headIndex + ensemble.getMembersCount(); i++){
+				if(i==headIndex){
 					role= ServerRole.head;
+					head = NetworkUtil.parseInetSocketAddress( ensemble.getMembers(i%ensemble.getMembersCount()).getBufferServerSocketAddress() ) ;
+				}
 				else
 					if(i==(headIndex+ensemble.getMembersCount()-1)%ensemble.getMembersCount())
 						role = ServerRole.tail;
 					else
 						role = ServerRole.middle;
 				ensembleServers.put( NetworkUtil.parseInetSocketAddress( ensemble.getMembers(i%ensemble.getMembersCount()).getSocketAddress() ), role);
+				
 			}
 		}
 
 		//set watched on the servers and set the head server
 		Iterator it = ensembleServers.entrySet().iterator();
-		InetSocketAddress head = null;
+		
 		Stat stat = null;
 		while(it.hasNext()){
 			Map.Entry<InetSocketAddress, ServerRole> entry =  (Map.Entry<InetSocketAddress, ServerRole>) it.next();
@@ -413,8 +418,8 @@ public class DBClient implements Watcher{
 					e.printStackTrace();
 					System.exit(-1);
 				}
-			if(entry.getValue()==ServerRole.head)
-				head = entry.getKey();
+		//	if(entry.getValue()==ServerRole.head)
+		//		head = entry.getKey();
 		}
 
 		return head;
@@ -470,29 +475,22 @@ public class DBClient implements Watcher{
 	 */
 
 	//copied from zookeeperclient class
-	public String getHostColonPort(String socketAddress)
-	{
+	public String getHostColonPort(String socketAddress){
 		String host = "";
 		int port=0;
-
 		Pattern p = Pattern.compile("^\\s*(.*?):(\\d+)\\s*$");
 		Matcher m = p.matcher(socketAddress);
 
-		if (m.matches()) 
-		{
+		if (m.matches()) {
 			host = m.group(1);
-
 			if(host.contains("/"))
 				host = host.substring( host.indexOf("/") + 1 );
 
 			port = Integer.parseInt(m.group(2));
-
 			return host + ":" + port;
 		}else
 			return null;
 
 	}
-
-
 }
 

@@ -247,8 +247,16 @@ public class ZookeeperClient implements Closeable{
 		zk.setData(ensemblePath, data.toByteArray(), -1);
 	}
 
-	public void deleteEnsembleZnode(String ensemblePath) throws InterruptedException, KeeperException{
-		zk.delete(ensemblePath, -1);
+	public void deleteEnsembleZnode(String ensemblePath){
+		try {
+			zk.delete(ensemblePath, -1);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			//e.printStackTrace();
+		} catch (KeeperException e) {
+			// TODO Auto-generated catch block
+		//	e.printStackTrace();
+		}
 	}
 
 	public EnsembleData getEnsembleData(String ensemblePath) throws KeeperException, InterruptedException, InvalidProtocolBufferException{

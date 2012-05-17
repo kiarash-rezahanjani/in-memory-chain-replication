@@ -76,11 +76,10 @@ public class LoadGenerator extends Thread{
 	}
 	
 	public void run(){		
-		
 		while(running){
 			while(!load && running){
 				try {
-					System.out.println("LoadGenerator innerloop: run and load "+ (running) + " " + (load));
+					System.out.println("LOAD STOPPED. LoadGenerator innerloop: run and load "+ (running) + " " + (load));
 					sleep(10);
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
@@ -98,7 +97,7 @@ public class LoadGenerator extends Thread{
 					.setOperation(payload).build();
 			
 			
-			System.out.println("sending "+ entry.getEntryId().getMessageId());
+		//	System.out.println("sending "+ entry.getEntryId().getMessageId());
 			
 			try {
 				semaphore.acquire();
@@ -106,16 +105,13 @@ public class LoadGenerator extends Thread{
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			System.out.println("Semaphore Acquired");
+			//System.out.println("Semaphore Acquired");
 			sentMessage.put(entry.getEntryId(), entry);//put in the buffer
 			latencyEvaluator.sent(id);//start elapsed time
 			headServer.write(entry).awaitUninterruptibly();
 
-			System.out.println("sent "+ entry.getEntryId().getMessageId());
-			
+//			System.out.println("sent "+ entry.getEntryId().getMessageId());		
 		}
-		System.out.println("LoadGenerator ended: run and load "+ (running) + " " + (load));
+		System.out.println("LoadGenerator ended: run and load flag "+ (running) + " " + (load));
 	}
-	
-
 }
