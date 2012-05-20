@@ -43,6 +43,7 @@ message EnsembleData {
 	message Member
 	{
 		required string socketAddress = 1 ;
+		required string BufferServerSocketAddress = 4 ;
 		repeated string heads = 2 ;//clients connected to this member as a head
 		repeated string tails = 3 ;//Client connected to this member as a tail
 		
