@@ -37,9 +37,10 @@ public class LatencyEvaluator{
 				average += time.getElapsedTime();
 			}
 		}
-		String report = "Average Latency " + average/success + " success/Total " + success + "/" + elapsedTime.size() + " Throughput " +  (success/(double)(end-start))*1000000000;
+		String report = "Average Latency ns " + average/success + " success/Total " + success + "/" + elapsedTime.size() + " Throughput " +  (success/(double)(end-start))*1000000000 + "\n";
 		System.out.println(report);
 		file.print(report);
+		elapsedTime.clear();
 	} 
 
 	class ElapsedTime{
@@ -64,6 +65,10 @@ public class LatencyEvaluator{
 			
 		}
 
+		/**
+		 * get latency for the message, received time - sent time
+		 * @return received time - sent time
+		 */
 		public long getElapsedTime(){
 			if(acked)
 				return end-start;

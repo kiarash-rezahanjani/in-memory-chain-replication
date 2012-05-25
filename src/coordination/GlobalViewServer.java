@@ -63,6 +63,8 @@ public class GlobalViewServer implements Runnable{
 		List<ServerData> sortedServers = sortedServersList();
 		applyEliminationPolicy(sortedServers);
 		List<Integer> leaderIndexList = leaderIndexList(sortedServers);
+		if(sortedServers.size()<3 || leaderIndexList.size()<=0)
+			return;
 		ServersGlobalView.Builder data = ServersGlobalView.newBuilder();
 		data.addAllSortedServers(sortedServers);
 		data.addAllLeaderIndex(leaderIndexList);

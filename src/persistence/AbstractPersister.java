@@ -29,7 +29,6 @@ public abstract class AbstractPersister extends Thread{
 
 	public void run() {
 		// TODO Auto-generated method stub
-		int i = 0;
 		while(running){
 				LogEntry entry = ensemble.getBuffer().nextToPersist();
 				boolean persisted = persistEntry(entry);
@@ -41,6 +40,7 @@ public abstract class AbstractPersister extends Thread{
 						e.printStackTrace();
 					}
 		}
+		close();
 	}
 
 	/**
@@ -50,6 +50,7 @@ public abstract class AbstractPersister extends Thread{
 	 * @return true if entry is persisted
 	 */
 	public abstract boolean persistEntry(LogEntry entry);
+	public abstract void close();
 
 	/**
 	 * creates the persisted message which inocates which entry has been persisted
@@ -61,30 +62,7 @@ public abstract class AbstractPersister extends Thread{
 				.setEntryId(entry.getEntryId()).build();
 	}
 
-	/**
-	 * Remove entry from buffer and send persisted message to the predecessor.
-	 * @param persistedMessage
-	 * @throws Exception
-	 */
-	/*	public void removePersistedEntry(final LogEntry persistedMessage) throws Exception{
-		ensemble.getBuffer().remove(persistedMessage.getEntryId());
-		ChannelFuture channelFuture = null;
-		if(ensemble.getPredecessorChannel().isConnected())
-			channelFuture = ensemble.getPredecessorChannel().write(persistedMessage);
-		else
-			throw new Exception("Predecessor channel is not connected!" +  ensemble.getPredecessorChannel());
 
-		if(channelFuture!=null)
-			channelFuture.addListener(new ChannelFutureListener() {
-				@Override
-				public void operationComplete(ChannelFuture future) throws Exception {
-					// TODO Auto-generated method stub
-					if(!future.isSuccess())
-						throw new Exception("Persisted Message failed to deliver." +  future.getCause());
-				}
-			});
-	}
-	 */
 	/**
 	 * Remove entry from buffer and send persisted message to the predecessor.
 	 * @param persistedMessage
@@ -94,7 +72,7 @@ public abstract class AbstractPersister extends Thread{
 		ensemble.getBuffer().remove(persistedMessage.getEntryId());
 		ensemble.broadcastChannel(persistedMessage);
 	}
-
+/*
 	private void broadcastPersistedMessage(final LogEntry persistedMessage, final List<Channel> peersChannel) {
 		for(Channel peer : peersChannel){
 			peer.write(persistedMessage).addListener(new ChannelFutureListener() {
@@ -107,6 +85,6 @@ public abstract class AbstractPersister extends Thread{
 			});
 		}
 	}
-
+*/
 
 }

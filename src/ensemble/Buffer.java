@@ -46,4 +46,6 @@ public interface Buffer {
 	 * 
 	 */
 	public void fillPersistQueue();
+	
+	public int size();
 }

@@ -32,7 +32,7 @@ public class Ensemble {
 	HashMap<String, Long> lastDeliveredMessage = new HashMap<String,Long>();//<clientId, msgId> last message acknowledged to client to delivered to next buffer server
 	HashMap<String, Long> lastPersistedMessage = new HashMap<String,Long>();//<clientId, msgId> last message persisted to client to delivered to next buffer server
 	HashMap<String, Identifier> clientFailed = new HashMap<String,Identifier>();
-	
+	EnsembleManager ensembleManager;
 	final Configuration conf;
 
 	AbstractPersister persister;
@@ -57,10 +57,11 @@ public class Ensemble {
 		return sortedChainSocketAddress;
 	}
 	
-	public Ensemble(Configuration conf, List<InetSocketAddress> sortedChainSocketAddress, List<InetSocketAddress>  sortedProtocolSocketAddress) throws Exception{
+	public Ensemble(Configuration conf, List<InetSocketAddress> sortedChainSocketAddress, List<InetSocketAddress>  sortedProtocolSocketAddress, EnsembleManager ensembleManager) throws Exception{
 		this.conf=conf;
 		this.sortedChainSocketAddress = sortedChainSocketAddress;
 		this.sortedProtocolSocketAddress = sortedProtocolSocketAddress;
+		this.ensembleManager = ensembleManager;
 		if(sortedChainSocketAddress.size()<2)
 			throw new Exception("obj.chain Ensemble size < 2 ");
 		//	buffer = new NaiveCircularBuffer(conf.getEnsembleBufferSize(),tailDbClients.keySet());
@@ -135,8 +136,22 @@ public class Ensemble {
 		//spawn a thread to take care of every thing
 		bufferReader.stopRunning();
 		buffer.fillPersistQueue();
-		//clean all the data structure
-		//signal to chain manager to remove he ensemble from zk and its data structres
+		new Thread(){
+			public void run(){
+				while(buffer.size()>0){
+					try {
+						Thread.sleep(10);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+				
+			}
+			
+		}.start();
+		ensembleManager.cleanEnsemble();
+
 	}
 
 	public void releaseResourcesOfFailedClient(String clientId){
@@ -241,6 +256,8 @@ public class Ensemble {
 		successorChannel.close();
 		predecessorChannel.close();
 		for(Channel ch : tailDbClients.values())
+			ch.close();
+		for(Channel ch : headDbClients.values())
 			ch.close();
 		persister.stopRunning();
 		bufferReader.stopRunning();

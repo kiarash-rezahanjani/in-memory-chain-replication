@@ -38,6 +38,10 @@ public class HashedBuffer implements  Buffer{
 		persistQueue = new LinkedBlockingQueue<Identifier>(capacity);
 		clientMessages = new Hashtable<String, HashSet<Identifier>>();
 	}
+	
+	public int size(){
+		return data.size();
+	}
 
 	public void add(Object object) {
 		// TODO Auto-generated method stub
@@ -121,8 +125,8 @@ public class HashedBuffer implements  Buffer{
 	 */
 	public void fillPersistQueue() {
 		// TODO Auto-generated method stub
-		new FillPersistQueue().start();
-		
+		Thread persistAll = new FillPersistQueue();
+		persistAll.start();
 	}
 	class FillPersistQueue extends Thread{
 		public void run(){
@@ -169,7 +173,7 @@ public class HashedBuffer implements  Buffer{
 	}
 
 	public void report(String msg){
-		System.out.println(msg + "\n RQ " + readQueue.size() + " PQ " +  persistQueue.size() + " Data " +  data.size() );
+//		System.out.println(msg + "\n RQ " + readQueue.size() + " PQ " +  persistQueue.size() + " Data " +  data.size() );
 	}
 /*
 	public static void main(String[] args) {

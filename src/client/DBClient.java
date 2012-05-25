@@ -84,14 +84,17 @@ public class DBClient implements Watcher{
 				//replace with a switch
 				if(msg.getMessageType()==Type.ACK){
 					bufferedMessage.remove(msg.getEntryId());
-					semaphore.release();
 					latencyEvaluator.received(msg.getEntryId());
+					if(msg.getEntryId().getMessageId()%2000 ==1999){
+						latencyEvaluator.report();
+						System.out.println("Acked: " + msg.getEntryId().getMessageId());
+					}
+					semaphore.release();
+
 				//	System.out.println("Ack of " + msg.getEntryId().getMessageId()  + " loadG status: "+  loadGeneratorThread.isAlive() + loadGeneratorThread.isInterrupted());
 					//receivedMessages.add(msg.getEntryId());
-					if(msg.getEntryId().getMessageId()%1000 ==999)
-						System.out.println("Acked: " + msg.getEntryId().getMessageId());
 
-					if(msg.getEntryId().getMessageId()==100000){
+					if(msg.getEntryId().getMessageId()==10000000){
 						loadGeneratorThread.stopLoad();
 						latencyEvaluator.report();
 						close();
@@ -298,8 +301,8 @@ public class DBClient implements Watcher{
 	@Override
 	public void process(WatchedEvent event) {
 		String path = event.getPath();
-		System.out.print("SSSSSsome one failed: " + event.getPath());
 		if (event.getType()== Event.EventType.NodeDeleted){
+			System.out.print("some one failed: " + event.getPath());
 			if(!path.contains(conf.getZkServersRoot())){
 				System.out.print("strange failure messsage received at client.");
 				System.exit(-1);
@@ -374,11 +377,11 @@ public class DBClient implements Watcher{
 				e.printStackTrace();
 				return null;
 			}
-			if(temp.getStat()==EnsembleData.Status.ACCPT_CONNECTION && temp.getCapacityLeft() > capacityLeft){
+		//	if(temp.getStat()==EnsembleData.Status.ACCPT_CONNECTION && temp.getCapacityLeft() > capacityLeft){
 				ensemble = temp;
 				capacityLeft = ensemble.getCapacityLeft();
 				checkedEnsembles++;
-			}
+	//		}
 			if(checkedEnsembles>=10){
 				break;
 			}

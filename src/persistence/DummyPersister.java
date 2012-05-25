@@ -20,9 +20,11 @@ public class DummyPersister extends AbstractPersister{
 	TextFile output = new TextFile("PersistedLogs"); ;
 	public DummyPersister(Ensemble ensemble) {
 		super(ensemble);
-		
 	}
 
+	public void close(){
+		output.close();
+	}
 	@Override
 	public boolean persistEntry(LogEntry entry) {
 		output.print(entry.getEntryId().toString());

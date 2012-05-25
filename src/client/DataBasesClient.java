@@ -32,8 +32,5 @@ public class DataBasesClient {
 			
 		}
 		System.out.println("DATABASEClient Terminated.");
-		
 	}
-
-	
 }

@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Random;
 
 import client.Log.LogEntry;
 
@@ -27,7 +28,7 @@ public class TextFile implements Closeable {
 		persist.append(entry.toString());
 	}
 	public void print(String str) {
-		persist.append(str);
+		persist.append(str+"\n");
 	}
 	public void close(){
 		try {

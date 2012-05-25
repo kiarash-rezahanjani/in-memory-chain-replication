@@ -22,9 +22,6 @@ import client.Log.LogEntry.Type;
 public class BufferReader  extends Thread{
 	Ensemble ensemble;
 	boolean running = true;
-	//HashSet<Identifier> failedDelivery = new HashSet<Identifier>(1000);
-//	HashMap<String, Long> lastMessageDelivered = new HashMap<String,Long>();// it can be done in a better way without consuming cpu for hashing
-	//boolean ringComplete = false;
 	public BufferReader(Ensemble ensemble){
 		this.ensemble = ensemble;
 	}
@@ -92,11 +89,10 @@ public class BufferReader  extends Thread{
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-				System.out.println("Last Acked" + ensemble.lastDeliveredMessage);
-				System.out.println("Last Acked" + ensemble.lastPersistedMessage);
+				System.out.println("BufferReader.run(): Last delivered" + ensemble.lastDeliveredMessage);
+				System.out.println("BufferReader.run(): Last persisted" + ensemble.lastPersistedMessage);
 				System.exit(-1);
 			}
-		//	System.out.println("Failed to deliver to next destination" + failedDelivery.size());
 		}
 
 	}

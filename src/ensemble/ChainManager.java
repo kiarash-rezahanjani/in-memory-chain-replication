@@ -2,6 +2,7 @@ package ensemble;
 
 import utility.Configuration;
 import utility.NetworkUtil;
+import utility.TextFile;
 
 import java.io.IOException;
 import java.net.Inet4Address;
@@ -55,17 +56,18 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 	BufferClient client;
 	List<Channel> unknownChannels = new ArrayList<Channel>();// not necessary
 	ZookeeperClient zkCli = null;
+	
 	//added
 	String ensembleZnodePath = null;
 	boolean leader = false;
-	
 	Protocol coordinator = null;
 	int capacityLeft = 100;
 	ZkUpdate zkUpdateThread = null;
-	
+	TextFile memoryInfo ;
 
 	public ChainManager(Configuration conf) throws Exception{
 		this.conf=conf;
+		memoryInfo = new TextFile("memory report"+conf.getBufferServerPort());
 		server = new BufferServer(conf, this);
 		client = new BufferClient(conf, this);
 		zkCli = new ZookeeperClient(this, conf);
@@ -84,7 +86,7 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 			return false;
 		//Zookeeper sets watch on the servers
 		try{
-			ensemble = new Ensemble(conf,ensembleBean.getEnsembleBufferServerAddressList(), ensembleBean.getEnsembleProtocolAddressList());
+			ensemble = new Ensemble(conf,ensembleBean.getEnsembleBufferServerAddressList(), ensembleBean.getEnsembleProtocolAddressList(), this);
 			Channel succChannel=null;
 			do{//loop is for testing, it should not happen to be null
 				Thread.sleep(500);
@@ -111,6 +113,14 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 						client.connectServerToServer(socketAddress) );
 			}
 			ensemble.getPeersChannelHandle().add(predChannel);
+			for(InetSocketAddress protocolSocketAddress : ensembleBean.getEnsembleProtocolAddressList() ){
+				Stat stat = zkCli.setServerFailureDetector(protocolSocketAddress);
+				if(stat==null){
+					ensemble.close();
+					return false;
+				}
+				
+			}
 			System.out.println("/n/nPEER CHANNEL" + ensemble.getPeersChannelHandle());
 			return true;
 		}catch(Exception e){
@@ -131,6 +141,15 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 
 	public void shutDownEnsemble(){
 		System.out.println("Shutdown ensemble.." + conf.getProtocolPort() + " Ensemble " + ensemble.getSortedChainSocketAddress());
+		ensemble.ensembleFailed();
+	}
+	
+	public void cleanEnsemble(){
+		
+		ensemble.close();
+		ensemble=null;
+		System.out.println("Ensemble is Shutdown. All cleaned.");
+		throw new RuntimeException();//for testing 
 	}
 	//-------------------------------Messages From the Servers and Clients---AND--- ACTIONs Taken---------------------------------
 	@Override
@@ -237,19 +256,20 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 		server.stop();
 		client.stop();
 		zkUpdateThread.stopRunning();
+		memoryInfo.close();
 	}
 
 	//---------------------should be in chain manager
+	@Override
 	public void process(WatchedEvent event) {
 		String path = event.getPath();
+		
 		if (event.getType()== Event.EventType.NodeDeleted){
 			//if the failed node is a server
+			System.out.println("Failed: " + path);
 			if(path.contains(conf.getZkServersRoot()+"/")){
-			//	;//CALLBACKTO+ENSEMBLEAND+PROTOCOL.serverFailure(path);
 				String node = path.replace(conf.getZkNameSpace()+conf.getZkServersRoot()+"/", "");
 				
-		//		if(NetworkUtil.parseInetSocketAddress(node).equals(conf.getProtocolSocketAddress()))
-			//		Thread.currentThread().stop();//System.exit(-1);
 				System.out.println("Chain manager. FailedNode: "+node+ " ensemble members Bs:  " + ensemble.getMembersBufferServerAddress() +  " Members Prot " + ensemble.getMembersProtocolSocketAddress() );
 				
 				if(ensemble.getMembersProtocolSocketAddress().contains( NetworkUtil.parseInetSocketAddress(node))){
@@ -267,11 +287,8 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 				}
 				coordinator.process(event);
 			}
-			
 			//if the failed node is a client
 			if(path.contains(conf.getZkClientRoot())){
-				;//CALLBACKTOENSEMBLE.clientFailure(path);
-
 				String node = path.replace(conf.getZkNameSpace()+conf.getZkClientRoot()+"/", "");
 				ensemble.clientFailed(node);
 			}
@@ -358,11 +375,18 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 		//	System.out.println("ZkUpdate stopped.." + conf.getProtocolPort() );
 		}
 
+		
 		private int getcapacityLeft() {
 			// TODO Auto-generated method stub
 		//	System.out.println(Runtime.getRuntime().freeMemory()  + "  ---  " + Runtime.getRuntime().totalMemory());
 		//	return new Random().nextInt(100);
-			return (int) ((((double)Runtime.getRuntime().freeMemory())/Runtime.getRuntime().totalMemory()) * 100);
+			long totalMemeory = Runtime.getRuntime().totalMemory();
+			long freeMemory = Runtime.getRuntime().freeMemory();
+			String str = "";
+			if(ensemble!=null)
+				str = "Buffer size/capacity: " +  ensemble.getBuffer().size() + "/" + conf.getEnsembleBufferSize();
+			memoryInfo.print("Free / Total memory: " + freeMemory + " " + totalMemeory + str);
+			return (int) ((((double)freeMemory)/totalMemeory) * 100);
 		}
 
 		ServerData getServerData(int capacity, ServerData.Status status){
@@ -374,5 +398,8 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 			return data.build();
 		}
 	}
+
+
+
 
 }
