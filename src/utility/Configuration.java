@@ -13,6 +13,9 @@ public class Configuration {
 	int bufferServerPort;
 	//int bufferClientPort;
 	int ensembleBufferSize;
+	int replicationFactor;
+	//for testing 
+	int valueSize;
 	
 	int gvInfoInterval;
 	int serverInfoInterval;
@@ -74,6 +77,8 @@ public class Configuration {
 			zkServersGlobalViewRoot = defaultProperty.getProperty("zkServersGlobalViewRoot").trim();
 			zkConnectionString = defaultProperty.getProperty("zkConnectionString").trim();
 			zkSessionTimeOut = Integer.parseInt( defaultProperty.getProperty("zkSessionTimeOut") );
+			replicationFactor = Integer.parseInt( defaultProperty.getProperty("replicationFactor") );
+			valueSize = Integer.parseInt( defaultProperty.getProperty("valueSize") );
 
 			gvInfoInterval = Integer.parseInt( defaultProperty.getProperty("gvInfoInterval") );
 			serverInfoInterval = Integer.parseInt( defaultProperty.getProperty("serverInfoInterval") );
@@ -109,9 +114,17 @@ public class Configuration {
 			System.exit(-1);
 		}
 	}
-
+	
+	public int getValueSize(){
+		return valueSize;
+	}
+	
 	public int getServerUpdateThreshold() {
 		return serverUpdateThreshold;
+	}
+	
+	public int getReplicationFactor() {
+		return replicationFactor;
 	}
 
 	public int getSaturationPoint() {

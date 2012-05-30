@@ -7,15 +7,18 @@ import org.apache.zookeeper.KeeperException;
 import coordination.Znode.ServerData;
 import coordination.Znode.ServersGlobalView;
 import com.google.protobuf.InvalidProtocolBufferException;
+import utility.Configuration;
 
 public class GlobalViewServer implements Runnable{
 	ZookeeperClient zkCli;
 	int timeInterval = 3000;
 	boolean running = true;
+	int replicationFactor = 3;
 
 	public GlobalViewServer(ZookeeperClient zkCli, int updateTimeInterval){
 		this.zkCli=zkCli;
 		this.timeInterval = updateTimeInterval;
+		this.replicationFactor = new Configuration().getReplicationFactor();
 	}
 
 	//sort all the servers based on the capacity left using insertion sort, those with max capacity come in the beginning
@@ -53,7 +56,7 @@ public class GlobalViewServer implements Runnable{
 	List<Integer> leaderIndexList(List<ServerData> sortedServers){
 		List<Integer> leaderIndexList = new ArrayList<Integer>();
 		for(int i = 0; i < sortedServers.size(); i++)
-			if(i%3==0 /*&& sortedServers.size()-i>=3*/)
+			if(i%replicationFactor==0 /*&& sortedServers.size()-i>=3*/)
 				leaderIndexList.add(i);
 		return leaderIndexList;
 	}
@@ -63,7 +66,7 @@ public class GlobalViewServer implements Runnable{
 		List<ServerData> sortedServers = sortedServersList();
 		applyEliminationPolicy(sortedServers);
 		List<Integer> leaderIndexList = leaderIndexList(sortedServers);
-		if(sortedServers.size()<3 || leaderIndexList.size()<=0)
+		if(sortedServers.size()<replicationFactor || leaderIndexList.size()<=0)
 			return;
 		ServersGlobalView.Builder data = ServersGlobalView.newBuilder();
 		data.addAllSortedServers(sortedServers);

@@ -34,7 +34,10 @@ public abstract class AbstractPersister extends Thread{
 				boolean persisted = persistEntry(entry);
 				if(persisted)
 					try {
-						removePersistedEntryBcast(getPersistedMessage(entry));
+						//added this line for everyone persist test
+						ensemble.getBuffer().remove(entry.getEntryId());
+
+	//					removePersistedEntryBcast(getPersistedMessage(entry));
 					} catch (Exception e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();

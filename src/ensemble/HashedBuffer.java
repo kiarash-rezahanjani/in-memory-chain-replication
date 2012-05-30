@@ -1,18 +1,13 @@
 package ensemble;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
-
 import client.Log.LogEntry;
 import client.Log.LogEntry.Identifier;
 
@@ -87,7 +82,7 @@ public class HashedBuffer implements  Buffer{
 
 	public void readComplete(Identifier id) {
 		// TODO Auto-generated method stub
-		if(persistClient.contains(id.getClientId())){
+/*		if(persistClient.contains(id.getClientId()))*/{
 			persistQueue.offer(id);
 			report("added to persistQ " + id.getMessageId());
 		}
@@ -169,11 +164,10 @@ public class HashedBuffer implements  Buffer{
 			report("gc done!");
 
 		}
-
 	}
 
 	public void report(String msg){
-//		System.out.println(msg + "\n RQ " + readQueue.size() + " PQ " +  persistQueue.size() + " Data " +  data.size() );
+	//	System.out.println(msg + "\n RQ " + readQueue.size() + " PQ " +  persistQueue.size() + " Data " +  data.size() );
 	}
 /*
 	public static void main(String[] args) {

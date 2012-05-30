@@ -67,7 +67,7 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 
 	public ChainManager(Configuration conf) throws Exception{
 		this.conf=conf;
-		memoryInfo = new TextFile("memory report"+conf.getBufferServerPort());
+		memoryInfo = new TextFile("server_report/"+conf.getBufferServerPort());
 		server = new BufferServer(conf, this);
 		client = new BufferClient(conf, this);
 		zkCli = new ZookeeperClient(this, conf);
@@ -400,6 +400,20 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 	}
 
 
-
+	public static void main(String[] args) {
+		System.out.println("Config file: " + args[0] + " " +System.getProperty("user.dir"));
+		if(args.length<1){
+		System.exit(-1);
+		}
+		Configuration conf = new Configuration(args[0]);
+		ChainManager cm=null;
+		try {
+			cm = new ChainManager(conf);
+		}catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			cm.close();
+		}
+	}
 
 }

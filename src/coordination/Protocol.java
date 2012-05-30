@@ -95,7 +95,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 		}
 		this.leader = leader;
 		if(leader)
-			leaderStartsFormingEnsemble(3);
+			leaderStartsFormingEnsemble(conf.getReplicationFactor());
 
 	}
 
@@ -231,7 +231,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 			}
 		}
 		System.out.println("Check for leadship is called / Size: " + myServers.size() +  myServers);
-		if(myServers.size()>=2)
+		if(myServers.size()>=conf.getReplicationFactor()-1)
 			leaderStartsFormingEnsemble(myServers);	
 	}
 
@@ -615,7 +615,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 		try {
 			for(;;){//for testing
 				sortedServers = zkCli.getSortedServersList();
-				if(sortedServers.size()>=3)
+				if(sortedServers.size()>=conf.getReplicationFactor())
 					break;
 				Thread.sleep(1000);
 			}
@@ -639,7 +639,7 @@ public class Protocol implements Runnable, ReceivedMessageCallBack, Watcher/*for
 		try {
 			for(;;){//for testing
 				sortedServers = zkCli.getSortedServersList();
-				if(sortedServers.size()>=3)
+				if(sortedServers.size()>=conf.getReplicationFactor())
 					break;
 				Thread.sleep(1000);
 			}

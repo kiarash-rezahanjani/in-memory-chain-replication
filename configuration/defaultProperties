@@ -3,7 +3,7 @@ protocol_port = 3333
 buffer_server_port = 4444
 
 //buffer size for each ensemble
-ensemble_buffer_size = 100
+ensemble_buffer_size = 50000
 
 //zookeeper properties should only be placed in default properties file. 
 //The zkNameSpace is the parent nodes and the rest will be child nodes. Nodes should include slash at the beginning.
@@ -23,8 +23,14 @@ gvInfoInterval = 10000
 serverInfoInterval = 2000
 serverInfoIntervalDeviation = 2000
 
-//serverUpdateThreshold indicates the minimum change required in the left capacity to update the server status and capacity
+//serverUpdateThreshold indicates the minimum change (in percentage) required in the left capacity to update the server status and capacity
 serverUpdateThreshold = 5
 
 //20(percent) means 80 of resources and consumed and server or ensemble should not accept new connections(clients or ensemble request)  
 saturationPoint = 20
+
+replicationFactor=2
+
+//----------------------- for testing --------------
+//size in byte
+valueSize=200

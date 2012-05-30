@@ -7,11 +7,11 @@ import client.Log.LogEntry.Identifier;;
 
 public class LatencyEvaluator{
 	HashMap<Identifier,ElapsedTime> elapsedTime = new HashMap<Identifier,ElapsedTime>(); 
-	TextFile file = new TextFile("evaluation_results");
+	TextFile file ;
 	long start , end;
 
-	public LatencyEvaluator(){
-		
+	public LatencyEvaluator(String outputFile){
+		file = new TextFile(outputFile);
 	}
 
 	public void sent(Identifier id){
