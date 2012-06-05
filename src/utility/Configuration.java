@@ -14,16 +14,17 @@ public class Configuration {
 	//int bufferClientPort;
 	int ensembleBufferSize;
 	int replicationFactor;
+	int pendingOperation;
 	//for testing 
 	int valueSize;
-	
+
 	int gvInfoInterval;
 	int serverInfoInterval;
 	int serverInfoIntervalDeviation;
-	
+
 	int serverUpdateThreshold;
 	int saturationPoint;
-	
+
 	InetSocketAddress protocolSocketAddress;
 	InetSocketAddress bufferServerSocketAddress;
 	//InetSocketAddress bufferClientSocketAddress;
@@ -32,6 +33,8 @@ public class Configuration {
 	String configDirectory = "configuration";
 
 	String defaultPropertiesFile = "defaultProperties";
+
+	String fileRoot ;
 	static String applicationPropertiesFile = "applicationProperties";
 
 	static String defaultPropertiesPath;
@@ -58,8 +61,14 @@ public class Configuration {
 	 */
 	public Configuration(String applicationPropertiesFile)
 	{	
-		defaultPropertiesPath = configDirectory + System.getProperty("file.separator") + defaultPropertiesFile;
-		applicationPropertiesPath = configDirectory + System.getProperty("file.separator") + applicationPropertiesFile;
+		if(!applicationPropertiesFile.contains(System.getProperty("file.separator"))){
+			defaultPropertiesPath = configDirectory + System.getProperty("file.separator") + defaultPropertiesFile;
+			applicationPropertiesPath = configDirectory + System.getProperty("file.separator") + applicationPropertiesFile;
+		}else{
+			int sepIdx = applicationPropertiesFile.lastIndexOf(System.getProperty("file.separator"));
+			defaultPropertiesPath = applicationPropertiesFile.substring(0, sepIdx+1) + defaultPropertiesFile;
+			applicationPropertiesPath = applicationPropertiesFile;
+		}
 		// create and load default properties
 		Properties defaultProperty =  new Properties();
 		Properties applicationProperties;
@@ -79,11 +88,13 @@ public class Configuration {
 			zkSessionTimeOut = Integer.parseInt( defaultProperty.getProperty("zkSessionTimeOut") );
 			replicationFactor = Integer.parseInt( defaultProperty.getProperty("replicationFactor") );
 			valueSize = Integer.parseInt( defaultProperty.getProperty("valueSize") );
+			fileRoot = defaultProperty.getProperty("fileRoot").trim();
+			pendingOperation = Integer.parseInt( defaultProperty.getProperty("pendingOperation") );
 
 			gvInfoInterval = Integer.parseInt( defaultProperty.getProperty("gvInfoInterval") );
 			serverInfoInterval = Integer.parseInt( defaultProperty.getProperty("serverInfoInterval") );
 			serverInfoIntervalDeviation = Integer.parseInt( defaultProperty.getProperty("serverInfoIntervalDeviation") );
-		
+
 			serverUpdateThreshold = Integer.parseInt( defaultProperty.getProperty("serverUpdateThreshold") );
 			saturationPoint = Integer.parseInt( defaultProperty.getProperty("saturationPoint") );
 
@@ -114,15 +125,19 @@ public class Configuration {
 			System.exit(-1);
 		}
 	}
-	
+
+	public int getPendingOperation(){
+		return pendingOperation;
+	}
+		
 	public int getValueSize(){
 		return valueSize;
 	}
-	
+
 	public int getServerUpdateThreshold() {
 		return serverUpdateThreshold;
 	}
-	
+
 	public int getReplicationFactor() {
 		return replicationFactor;
 	}
@@ -177,6 +192,10 @@ public class Configuration {
 
 	public  String getZkEnsemblesRoot() {
 		return zkEnsemblesRoot;
+	}
+
+	public  String getFileRoot() {
+		return fileRoot;
 	}
 
 	/**

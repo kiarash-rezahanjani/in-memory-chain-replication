@@ -41,7 +41,7 @@ public class LocalHostReplication {
 		ChainManager cm11=null;
 
 		try {
-			cm = new ChainManager(conf);
+/*			cm = new ChainManager(conf);
 			cm1 = new ChainManager(conf1);
 			cm2 = new ChainManager(conf2);
 			
@@ -52,7 +52,7 @@ public class LocalHostReplication {
 			cm5 = new ChainManager(conf5);
 			
 			Thread.sleep(2000);
-			
+	*/		
 			cm6 = new ChainManager(conf6);
 			cm7 = new ChainManager(conf7);
 			cm8 = new ChainManager(conf8);
@@ -69,6 +69,16 @@ public class LocalHostReplication {
 			cm.close();
 			cm1.close();
 			cm2.close();
+			cm3.close();
+			cm4.close();
+			cm5.close();
+			cm6.close();
+			cm7.close();
+			cm8.close();
+			cm9.close();
+			cm10.close();
+			cm11.close();
+
 			System.exit(-1);
 		}
 		

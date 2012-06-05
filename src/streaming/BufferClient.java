@@ -68,6 +68,8 @@ public class BufferClient {
 			}
 		};
 		bootstrap.setPipelineFactory(channelPipeline);
+		bootstrap.setOption("tcpNoDelay", true);
+		bootstrap.setOption("keepAlive", true);
 	}
 
 	/**

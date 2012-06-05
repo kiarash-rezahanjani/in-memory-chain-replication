@@ -16,6 +16,7 @@ public class TextFile implements Closeable {
 
 	public TextFile(String file){
 		try {
+			file = new Configuration().getFileRoot() + System.getProperty("file.separator") + file;
 			out = new FileOutputStream(file, true);
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block

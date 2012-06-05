@@ -67,7 +67,7 @@ public class DBClient implements Watcher{
 	int connRetry  = 3;//millisecond
 	Writer WriterThread ;
 	LatencyEvaluator latencyEvaluator ;
-	final Semaphore semaphore = new Semaphore(1);
+	final Semaphore semaphore;
 	IDGenerator idGenerator = new IDGenerator();
 	static ZooKeeper zk = null;
 	HashMap<InetSocketAddress, ServerRole> ensembleServers = new HashMap<InetSocketAddress, ServerRole>();
@@ -83,10 +83,10 @@ public class DBClient implements Watcher{
 				if(msg.getMessageType()==Type.ACK){
 					bufferedMessage.remove(msg.getEntryId());
 					latencyEvaluator.received(msg.getEntryId());
-					if(msg.getEntryId().getMessageId()%2000 ==1){
-						latencyEvaluator.report();
+		//			if(msg.getEntryId().getMessageId()%2000 ==1){
+		//				latencyEvaluator.report();
 						System.out.println("Acked: " + msg.getEntryId().getMessageId());
-					}
+		//			}
 					semaphore.release();
 
 					if(msg.getEntryId().getMessageId()==2000000){
@@ -96,13 +96,14 @@ public class DBClient implements Watcher{
 					}
 					return;
 				}
+				semaphore.release();
 				if(msg.getMessageType()==Type.CONNECTION_TAIL_TO_DB_CLIENT){
 					tailServer = e.getChannel();
 					System.out.println("Ready to stream. Tail:" + msg.getClientSocketAddress() );
 					return;
 				}
 			}
-			System.out.println("Client got a wiered message");
+			System.out.println("Client got a wiered message "+ e.getMessage().toString());
 		}
 
 		@Override
@@ -114,8 +115,8 @@ public class DBClient implements Watcher{
 		@Override
 		public void exceptionCaught(ExceptionEvent e) {
 			// TODO Auto-generated method stub
-			System.out.println("Client received Exception: " + e.getChannel());
-			closeOnFlush(e.getChannel(), e.getCause().toString());
+			System.out.println("Client received Exception: " + e.getChannel() );
+	//		closeOnFlush(e.getChannel(), e.getCause().toString());
 		}
 
 		@Override
@@ -154,6 +155,7 @@ public class DBClient implements Watcher{
 
 	public DBClient(Configuration conf){
 		this.conf = conf;
+		semaphore = new Semaphore(conf.getPendingOperation());
 		server = new BufferServer(conf, callback);
 		client = new BufferClient(conf, callback);
 		latencyEvaluator = new LatencyEvaluator("client_report/"+conf.getDbClientId());

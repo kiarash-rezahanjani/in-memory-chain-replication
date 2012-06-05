@@ -8,6 +8,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.ChannelFutureListener;
 
 import utility.Configuration;
 import utility.LatencyEvaluator;
@@ -58,8 +59,12 @@ public class Writer extends Thread implements Logger{
 		this.latencyEvaluator = latencyEvaluator;
 		this.headServer = headServer;
 		this.sentMessage = sentMessage ;
+		String _100B = "";
+		for(int i=0 ; i<100; i++){
+			_100B += "o";
+		}
 		for(int i=0 ; i<this.size; i++){
-			payload += "o";
+			payload += _100B;
 		}
 	}
 	
@@ -109,7 +114,7 @@ public class Writer extends Thread implements Logger{
 			sync.wait();
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+//			e.printStackTrace();
 		}}
 	}
 	
@@ -136,7 +141,8 @@ public class Writer extends Thread implements Logger{
 			LogEntry entry = nextEntry();
 			sentMessage.put(entry.getEntryId(), entry);//put in the buffer
 			latencyEvaluator.sent(entry.getEntryId());//start elapsed time
-			headServer.write(entry).awaitUninterruptibly();
+		//	headServer.write(entry).awaitUninterruptibly();
+			headServer.write(entry);
 	
 		}
 		System.out.println("Writer ended: run and load flag "+ (running) + " " + (load));

@@ -89,13 +89,13 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 			ensemble = new Ensemble(conf,ensembleBean.getEnsembleBufferServerAddressList(), ensembleBean.getEnsembleProtocolAddressList(), this);
 			Channel succChannel=null;
 			do{//loop is for testing, it should not happen to be null
-				Thread.sleep(500);
+				Thread.sleep(100);
 				succChannel = client.connectServerToServer(ensemble.getSuccessorSocketAddress());
 			}while(succChannel==null);
 
 			Channel predChannel=null;
 			do{//loop is for testing, it should not happen to be null
-				Thread.sleep(500);
+				Thread.sleep(100);
 				predChannel = client.connectServerToServer(ensemble.getPredessessorSocketAddress());
 			}while(predChannel==null);
 
@@ -149,7 +149,7 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 		ensemble.close();
 		ensemble=null;
 		System.out.println("Ensemble is Shutdown. All cleaned.");
-		throw new RuntimeException();//for testing 
+	//	throw new RuntimeException();//for testing 
 	}
 	//-------------------------------Messages From the Servers and Clients---AND--- ACTIONs Taken---------------------------------
 	@Override
@@ -158,7 +158,6 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 			LogEntry msg = (LogEntry) e.getMessage();
 			//System.out.println("Rec: "  + msg.getEntryId().getMessageId() + " " + msg.getMessageType() );
 			if(msg.hasMessageType()){//check if this is a channel identification message
-
 				if(msg.getMessageType()==Type.ENTRY_PERSISTED){
 					//System.out.println("Persisted Message: " +  msg.getEntryId().getMessageId() + " Channel " +  e.getChannel());
 					ensemble.entryPersisted(msg);
@@ -188,7 +187,6 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 								if(msg.getMessageType()==Type.LAST_ACK_SENT_TO_FAILED_CLIENT){
 									ensemble.clientFailedLastAck(msg.getEntryId());
 								}
-
 				//replace with a switch
 				if(msg.getMessageType()==Type.ACK){//should n not happen here
 					System.out.println("DBClient Rec Ack: " + msg.getEntryId() + " from " + msg.getClientSocketAddress() + " BDClient address " + conf.getBufferServerPort());
@@ -311,7 +309,7 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 			case Expired:
 				// It's all over
 				System.out.println("Zookeeper Connection is dead.");
-				System.exit(-1);
+				System.exit(0);
 				break;
 			}
 		}
@@ -401,7 +399,7 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 
 
 	public static void main(String[] args) {
-		System.out.println("Config file: " + args[0] + " " +System.getProperty("user.dir"));
+		System.out.println("Config file v2: " + args[0] + " " +System.getProperty("user.dir"));
 		if(args.length<1){
 		System.exit(-1);
 		}

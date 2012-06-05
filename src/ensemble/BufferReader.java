@@ -49,7 +49,7 @@ public class BufferReader  extends Thread{
 
 	LogEntry ackMessage(Identifier id){
 		return LogEntry.newBuilder().setEntryId(id)
-				.setClientSocketAddress(ensemble.getConfiguration().getBufferServerSocketAddress().toString())
+			//	.setClientSocketAddress(ensemble.getConfiguration().getBufferServerSocketAddress().toString())
 				.setMessageType(Type.ACK).build();
 	}
 	

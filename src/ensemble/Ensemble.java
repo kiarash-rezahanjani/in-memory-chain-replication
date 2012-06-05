@@ -95,6 +95,7 @@ public class Ensemble {
 			}	
 		}
 		
+		//close the client channel and remove the failed client from head list 
 		if(headDbClients.values().contains(channel)){
 			Iterator it = headDbClients.entrySet().iterator();
 			String clientId = null;
@@ -124,7 +125,7 @@ public class Ensemble {
 			headDbClients.get(lastAck.getClientId()).close();
 */		
 		print("Last Acked ID: " + lastAck);
-		buffer.garbageCollect(lastAck);
+//		buffer.garbageCollect(lastAck);
 	}
 	
 	public void clientFailed(String node){

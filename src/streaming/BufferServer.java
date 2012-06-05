@@ -64,6 +64,8 @@ public class BufferServer {
 		ServerBootstrap bootstrap = new ServerBootstrap(factory);
 		bootstrap.setPipelineFactory(channelPipeline);
 		bootstrap.setOption("tcoNoDelay", true);
+		bootstrap.setOption("tcoNoDelay", true);
+
 		Channel ch = bootstrap.bind(conf.getBufferServerSocketAddress());
 		
 		System.out.println(" Is running." + ch.getLocalAddress());
