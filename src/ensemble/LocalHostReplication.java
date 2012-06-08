@@ -53,13 +53,13 @@ public class LocalHostReplication {
 			
 			Thread.sleep(2000);
 	*/		
-			cm6 = new ChainManager(conf6);
-			cm7 = new ChainManager(conf7);
-			cm8 = new ChainManager(conf8);
+//			cm6 = new ChainManager(conf6);
+//			cm7 = new ChainManager(conf7);
+//			cm8 = new ChainManager(conf8);
 			
 			Thread.sleep(2000);
 			
-			cm9 = new ChainManager(conf9);
+//			cm9 = new ChainManager(conf9);
 			cm10 = new ChainManager(conf10);
 			cm11 = new ChainManager(conf11);
 			

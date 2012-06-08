@@ -56,7 +56,7 @@ public class HashedBuffer implements  Buffer{
 			}
 		}
 		
-		if(!clientMessages.keySet().contains(entry.getEntryId()))
+		if(!clientMessages.keySet().contains(entry.getEntryId().getClientId()))
 			clientMessages.put(entry.getEntryId().getClientId(), new HashSet<Identifier>(capacity));
 
 		clientMessages.get(entry.getEntryId().getClientId()).add(entry.getEntryId());

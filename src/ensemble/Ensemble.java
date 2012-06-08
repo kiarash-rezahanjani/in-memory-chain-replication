@@ -69,6 +69,8 @@ public class Ensemble {
 		buffer = new HashedBuffer(conf.getEnsembleBufferSize(),tailDbClients.keySet());
 		persister = new DummyPersister(this);
 		bufferReader = new BufferReader(this);
+		persister.setName("persister");
+		bufferReader.setName("bufferReader");
 		persister.start();
 		bufferReader.start();
 

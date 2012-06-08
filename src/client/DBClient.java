@@ -83,10 +83,10 @@ public class DBClient implements Watcher{
 				if(msg.getMessageType()==Type.ACK){
 					bufferedMessage.remove(msg.getEntryId());
 					latencyEvaluator.received(msg.getEntryId());
-		//			if(msg.getEntryId().getMessageId()%2000 ==1){
-		//				latencyEvaluator.report();
+					if(msg.getEntryId().getMessageId()%2000 ==1999){
+						latencyEvaluator.report();
 						System.out.println("Acked: " + msg.getEntryId().getMessageId());
-		//			}
+					}
 					semaphore.release();
 
 					if(msg.getEntryId().getMessageId()==2000000){
@@ -454,12 +454,21 @@ public class DBClient implements Watcher{
 		if(args.length<1){
 			System.exit(-1);
 		}
-		
+		String value = "";
 		DBClient dbcli =null;
+		Configuration conf = null;
 		try {
-			dbcli = new DBClient( new Configuration(args[0]));
+			conf = new Configuration(args[0]);
+			dbcli = new DBClient( conf );
 			dbcli.run();
-
+			
+			String _100B = "";
+			for(int i=0;i<100;i++){
+				_100B+="o";
+			}
+			for(int i=0;i<conf.getValueSize();i++)
+				value+=_100B;
+			
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -469,7 +478,8 @@ public class DBClient implements Watcher{
 			
 		}
 		while(true){
-		dbcli.logger().addEntry("key", "valle");
+			
+		dbcli.logger().addEntry("key", value);
 		}	//	System.out.println("DATABASEClient Terminated.");
 		
 	}

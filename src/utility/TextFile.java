@@ -26,10 +26,10 @@ public class TextFile implements Closeable {
 	}
 
 	public void print(LogEntry entry) {
-		persist.append(entry.toString());
+//		persist.append(entry.toString());
 	}
 	public void print(String str) {
-		persist.append(str+"\n");
+//		persist.append(str+"\n");
 	}
 	public void close(){
 		try {

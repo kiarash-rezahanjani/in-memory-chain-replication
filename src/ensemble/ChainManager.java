@@ -383,7 +383,9 @@ public class ChainManager implements EnsembleManager, ClientServerCallback, Watc
 			String str = "";
 			if(ensemble!=null)
 				str = "Buffer size/capacity: " +  ensemble.getBuffer().size() + "/" + conf.getEnsembleBufferSize();
-			memoryInfo.print("Free / Total memory: " + freeMemory + " " + totalMemeory + str);
+			
+			System.out.println(str);
+			//memoryInfo.print("Free / Total memory: " + freeMemory + " " + totalMemeory + str);
 			return (int) ((((double)freeMemory)/totalMemeory) * 100);
 		}
 
